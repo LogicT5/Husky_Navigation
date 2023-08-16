@@ -1,0 +1,4 @@
+<launch>
+    <node name="husky_simulation_control" pkg="husky_simulation_control" type="husky_simulation_control" output="screen" >
+    </node>
+</launch>

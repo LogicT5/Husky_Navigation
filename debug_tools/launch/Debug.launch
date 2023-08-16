@@ -1,0 +1,10 @@
+<launch>
+
+    <arg name="InPointCloud2Topic" default="" doc="input PointCloud2 Topic"/>
+
+   <!-- frame_reconstruction node in frame_reconstruction pkg-->
+    <node name="DebugTools" pkg="DebugTools" type="DebugTools" output="screen">
+        <param name="PointCloud2InTopic" type="string" value="$(arg InPointCloud2Topic)"  />
+    
+
+</launch>

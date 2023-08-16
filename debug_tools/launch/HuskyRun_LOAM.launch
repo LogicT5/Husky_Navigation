@@ -1,0 +1,116 @@
+<launch>
+    
+  <arg name="WorldName" default="clearpath_playpen" doc="Gazebo World Name"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find husky_gazebo)/worlds/$(arg WorldName).world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <include file="$(find husky_gazebo)/launch/spawn_husky.launch">
+    <arg name="enable_ekf"  default="true"/>
+  </include>
+
+  <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="FrameRecon_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FrameRecon.rviz"/>
+  </include>
+
+  <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="FramesFusion_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FramesFusion.rviz"/>
+  </include>
+
+  <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="TopoMap_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/TopoMap.rviz"/>
+  </include>
+
+    <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="Debug"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/Debug.rviz"/>
+  </include>
+
+  <!-- output evaluation files (point cloud and mesh )-->
+  <arg name="sf_output_path" default=""/> 
+  <arg name="mf_output_path" default=""/>
+  <!-- <arg name="mf_output_path" default="/home/vcc/Dense_ROS/$(arg WorldName)/mf_output/"/> -->
+  <!-- <arg name="sf_output_path" default="/home/vcc/Dense_ROS/$(arg WorldName)/sf_output"/> -->
+  <!-- <param name="sf_output_path" type="string" value="$(arg sf_output_path)" /> -->
+  <!-- <param name="mf_output_path" type="string" value="$(arg mf_output_path)" /> -->
+
+  <!--Use simulated time to prevent the public time of the TF structure from being unable to match with other messages-->
+  <!-- <param name="use_sim_time" value="true"/> -->
+
+  <!-- use velodyne -->
+  <include file="$(find loam_velodyne)/launch/loam_velodyne.launch"/>
+
+  <!-- <include file="$(find aloam_velodyne)/launch/aloam_velodyne.launch" /> -->
+
+  
+  <!-- A node transposes LOAM output to the custom robot coordinate system-->
+  <include file="$(find husky_slam_trans)/launch/publish_SLAM_res.launch">
+    <arg name="lidartopic" value="/velodyne_points" />
+    <arg name="trajtopic" value="/integrated_to_init" />
+    <arg name="lidarouttopic" value="/slam_points" />
+    <!-- <arg name="trajouttopic" value="/husky_velocity_controller/odom" /> -->
+    <arg name="odomtargetframe" default="odom" />
+    <arg name="odomrawframe" default="camera_init" />
+    <arg name="cloudstargetframe" default="odom"/>
+    <arg name="cloudsrawframe" default="camera_init"/> 
+    <arg name="samplingnumber"  default="1" />
+  </include>  
+
+      <!-- launch frame fusion-->
+  <include file="$(find simple_frame)/launch/reconstruction.launch">
+      <arg name="cloudintopic" default="/slam_points" />
+      <arg name="odomintopic" default="/odom_lidar" />
+      <!-- <arg name="odomintopic" default="/odometry/filtered" /> -->
+      <arg name="lidar_line_min" default="0"/>
+       <arg name="lidar_line_max" default="15"/>
+
+      <arg name="sf_output_path" value="$(arg sf_output_path)" />
+  </include>
+
+   <include file="$(find hash_fusion)/launch/fusion.launch">
+      <arg name="cloud_in_topic" default="/frame_cloudnormals" />
+      <arg name="odom_in_topic" default="/odom_lidar" />
+      <arg name="mf_output_path" value="$(arg mf_output_path)" />
+  </include>
+  
+  <!-- A node which estimates the ground, obstacle and boundary points using gp-insac algorithm-->
+  <include file="$(find travelable_region)/launch/gpinsac.launch">
+    <arg name="outputpath" default="/home/ludy/" />
+    <arg name="txtoutputflag" default="false" />
+    <!--input parameters--> 
+    <!-- mesh map use samplingnumber=13 -->
+    <arg name="samplingnumber" default="5" />
+    <arg name="lidartopic" default="/slam_points" />
+    <arg name="trajtopic" default="/odometry/filtered" />
+    <!-- GP-INSAC method parameters-->
+    <!-- getParam does not have float type  -->
+    <arg name="sectornum" default="360"/>
+    <arg name="seedradius" default="4.2"/>
+    <!-- this arrange is arround the height between base_link and base_footprint -->
+    <!-- -0.132 is suggested by using rosrun tf tf_echo base_link base_footprint-->
+    <arg name="seedlower" default="-0.2"/>
+    <arg name="seedupper" default="-0.05"/>
+
+    <arg name="gplscale" default="28.01"/>
+    <arg name="gpsigmaF" default="1.76"/>
+    <arg name="gpsigmaN" default="0.12"/>
+    <arg name="insacmodel" default="0.2"/>
+    <arg name="insacdata" default="0.8"/>
+  </include>
+
+
+  <include file="$(find topo_confidence_map)/launch/mapping.launch">
+  <!-- <arg name="fileoutputpath" default="/home/vcc/Dense_ROS/$(arg WorldName)/ToPoMap/"/> -->
+  </include>
+  <include file="$(find husky_navigation_goals)/launch/send_goal.launch"/>
+
+</launch>

@@ -1,0 +1,102 @@
+<launch>
+    
+  <arg name="WorldName" default="clearpath_playpen" doc="Gazebo World Name"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find husky_gazebo)/worlds/$(arg WorldName).world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <include file="$(find husky_gazebo)/launch/spawn_husky.launch">
+    <arg name="enable_ekf"  value="false"/>
+  </include>
+
+  <!-- <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="FrameRecon_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FrameRecon.rviz"/>
+  </include>
+
+  <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="FramesFusion_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FramesFusion.rviz"/>
+  </include>
+
+  <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="TopoMap_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/TopoMap.rviz"/>
+  </include> -->
+
+  <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="Debug"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/Debug.rviz"/>
+  </include>
+
+
+  <!-- LIO-SAM -->
+  <include file="$(find husky_lio_sam)/launch/Husky_LIO-SAM.launch"/>
+  <!-- <include file="$(find lio_sam)/launch/run.launch"/> -->
+
+
+  <!-- launch frame reconstruction-->
+  <include file="$(find simple_frame)/launch/reconstruction.launch">
+    <arg name="cloudintopic" default="/husky_lio_sam/mapping/cloud_registered_raw" />
+    <arg name="odomintopic" default="/husky_lio_sam/mapping/odometry" />
+    <arg name="lidar_line_min" default="0"/>
+    <arg name="lidar_line_max" default="15"/>
+  </include>
+
+  <!-- launch frame fusion-->
+  <include file="$(find hash_fusion)/launch/fusion.launch">
+      <arg name="cloud_in_topic" default="/frame_cloudnormals" />
+      <arg name="odom_in_topic" default="/husky_lio_sam/mapping/odometry" />
+      <!-- <arg name="mf_output_path" default="/home/vcc/Dense_ROS/$(arg WorldName)/mf_output/"/> -->
+  </include>
+
+    <!--- Run Move Base -->  
+  <!-- <include file="$(find husky_navigation)/launch/move_base.launch">
+    <arg name="no_static_map" value="true"/>
+  </include> -->
+
+    <!-- A node which estimates the ground, obstacle and boundary points using gp-insac algorithm-->
+  <include file="$(find travelable_region)/launch/gpinsac.launch">
+    <arg name="outputpath" default="/home/ludy/" />
+    <arg name="txtoutputflag" default="false" />
+    <!--input parameters--> 
+    <!-- mesh map use samplingnumber=13 -->
+    <arg name="samplingnumber" default="5" />
+    <!-- <arg name="lidartopic" default="/frame_meshs" /> -->
+    <!-- <arg name="lidartopic" default="/frame_cloudnormals" /> -->
+    <arg name="lidartopic" default="/husky_lio_sam/mapping/cloud_registered_raw" />
+    <arg name="trajtopic" default="/husky_lio_sam/mapping/odometry" />
+    <!-- GP-INSAC method parameters-->
+    <!-- getParam does not have float type  -->
+    <arg name="sectornum" default="360"/>
+    <arg name="seedradius" default="4.2"/>
+    <!-- this arrange is arround the height between base_link and base_footprint -->
+    <!-- -0.132 is suggested by using rosrun tf tf_echo base_link base_footprint-->
+    <arg name="seedlower" default="-0.2"/>
+    <arg name="seedupper" default="-0.05"/>
+
+    <arg name="gplscale" default="28.01"/>
+    <arg name="gpsigmaF" default="1.76"/>
+    <arg name="gpsigmaN" default="0.12"/>
+    <arg name="insacmodel" default="0.2"/>
+    <arg name="insacdata" default="0.8"/>
+  </include>
+
+
+  <include file="$(find topo_confidence_map)/launch/mapping.launch">
+    <!-- <arg name="odomintopic" default="/husky_lio_sam/mapping/odometry"/> -->
+    <arg name="mapframeid" default="base_link_odom" />
+  </include>
+  <include file="$(find husky_navigation_goals)/launch/send_goal.launch">
+    <arg name="goalodomtopic" default="/topology_map/goal_odom" />
+  </include>
+
+
+
+</launch>

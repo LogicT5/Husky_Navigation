@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="name" default="riviz"/>
+  <arg name="rvizFile" default="-d $(find husky_viz)/rviz/robot.rviz"/>
+  <node name="$(arg name)" pkg="rviz" type="rviz" args="$(arg rvizFile)" output="screen"/>
+</launch>

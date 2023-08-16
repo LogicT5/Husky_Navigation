@@ -1,0 +1,5 @@
+<launch>
+    
+    <node name="PublishNodes" pkg="debug_tools" type="PublishNodes" output="screen"/> 
+
+</launch>

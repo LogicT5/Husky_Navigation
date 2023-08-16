@@ -1,0 +1,76 @@
+<launch>
+    <!-- bag path -->
+    <arg name="rosbag" default="$(find debug_tools)/rosbag/L7_IMU.bag" />
+    <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/climb_onto_platform.bag" /> -->
+    <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/underground_garage_exit.bag" /> -->
+    <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/through_art_building.bag" /> -->
+    <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/nsh_indoor_outdoor.bag" /> -->
+    <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/003.bag" /> -->
+    <!-- <arg name="rosbag" default="/home/vcc/Square.bag" /> -->
+
+
+
+    <!-- output evaluation files (point cloud and mesh )-->
+    <arg name="sf_output_path" default=""/>
+    <arg name="mf_output_path" default=""/>
+    <!-- <arg name="sf_output_path" default="/home/vcc/Dense_ROS/nsh_indoor_outdoor/sf_output/"/> -->
+    <!-- <arg name="mf_output_path" default="/home/vcc/Dense_ROS/nsh_indoor_outdoor/mf_output/"/> -->
+
+    <include file="$(find husky_viz)/launch/view_husky.launch">
+        <arg name="name" value="FrameRecon_rviz"/>
+        <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FrameRecon.rviz"/>
+    </include>
+
+    <include file="$(find husky_viz)/launch/view_husky.launch">
+        <arg name="name" value="FramesFusion_rviz"/>
+        <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FramesFusion.rviz"/>
+    </include>
+
+      <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="TopoMap_rviz"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/TopoMap.rviz"/>
+  </include>
+
+    <!-- output evaluation files (point cloud and mesh )-->
+    <param name="sf_output_path" type="string" value="$(arg sf_output_path)" />
+    <param name="mf_output_path" type="string" value="$(arg mf_output_path)" />
+
+    <!--Use simulated time to prevent the public time of the TF structure from being unable to match with other messages-->
+    <param name="use_sim_time" value="true"/>
+
+    <!-- use velodyne -->
+    <!-- <include file="$(find loam_velodyne)/launch/loam_velodyne.launch" /> -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="camera_init_to_map"  args="0 0 0 1.570795 0 1.570795 /map /camera_init 10" /> -->
+
+    <!-- use aloam -->
+    <include file="$(find aloam_velodyne)/launch/aloam_velodyne.launch" />
+    <node pkg="tf" type="static_transform_publisher" name="camera_init_to_map"  args="0 0 0 0 0 0 /map /camera_init 10" />
+
+
+    <!-- SLAM transfer -->
+    <include file="$(find slam_trans)/launch/SLAM_to_map.launch"/>
+
+    <!-- launch frame reconstruction-->
+    <include file="$(find simple_frame)/launch/reconstruction.launch">
+        <arg name="cloudintopic" default="/velodyne_cloud_registered" />
+        <arg name="odomintopic" default="/aft_mapped_to_init" />
+
+        <arg name="lidar_line_min" default="1"/>
+        <arg name="lidar_line_max" default="40"/>
+    </include>
+
+    <!-- launch frame fusion-->
+      <include file="$(find hash_fusion)/launch/fusion.launch" />
+
+    <!-- launch poisson reconstruction -->
+    <!-- <include file="$(find poisson_reconstruction)/launch/poisson.launch" /> -->
+
+    <!-- rosbag related: replay with rate = 1 speed up-->
+    <node pkg="rosbag" type="play" name="rosbag" args="--clock -r 1 $(arg rosbag) --topics /velodyne_points"/>
+
+    <!-- <include file="$(find aloam_velodyne)/launch/kitti_helper_simple.launch" /> -->
+
+
+</launch>
+
+

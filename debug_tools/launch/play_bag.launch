@@ -1,0 +1,59 @@
+<launch>
+
+<arg name="slamType" default="true"/>
+<!-- true是LIO-SAM    false是ALOAM -->
+
+<arg name="rosbag" default="$(find debug_tools)/rosbag/L7_IMU.bag" />
+<!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/upper_platform.bag" /> -->
+<!-- <arg name="rosbag" default="/home/vcc/Square.bag" /> -->
+
+<!-- Rviz -->
+<node name="PlayBag" pkg="rviz" type="rviz" args="-d $(find debug_tools)/rviz/PlayBag.rviz" output="screen"/>
+    <!-- <include file="$(find husky_viz)/launch/view_husky.launch">
+    <arg name="name" value="Debug"/>
+    <arg name="rvizFile" value="-d $(find debug_tools)/rviz/Debug.rviz"/>
+  </include> -->
+    
+<!-- <include file="$(find loam_velodyne)/launch/loam_velodyne.launch"/> -->
+<!-- <include file="$(find aloam_velodyne)/launch/aloam_velodyne.launch" /> -->
+
+
+<group if="$(arg slamType)">
+    <include file="$(find husky_lio_sam)/launch/RunBag_husky_hesai40.launch"/>
+</group>
+<group unless="$(arg slamType)">
+    <!--- Robot State TF -->
+    <param name="robot_description" command="$(find xacro)/xacro $(find husky_lio_sam)/launch/include/config/HESAI40p.urdf.xacro --inorder" />
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true">
+        <!-- <param name="tf_prefix" value="$(env ROS_HOSTNAME)"/> -->
+    </node>
+
+
+    <!--- Run Navsat -->
+    <!-- <include file="$(find husky_lio_sam)/launch/include/module_navsat.launch" />    -->
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find husky_lio_sam)/launch/include/rosconsole/rosconsole_error.conf"/>
+    
+    <!-- EKF GPS-->
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_gps" respawn="true">
+        <remap from="odometry/filtered" to="odometry/navsat" />
+    </node>
+
+    <!-- Navsat -->
+    <node pkg="robot_localization" type="navsat_transform_node" name="navsat" respawn="true">
+        <!-- <rosparam param="datum">[42.35893211, -71.09345588, 0.0, world, base_link]</rosparam> -->
+        <remap from="imu/data" to="imu/data" />
+        <remap from="gps/fix" to="gps/fix" />
+        <remap from="odometry/filtered" to="odometry/navsat" />
+    </node>
+</group>
+<!-- Bag -->
+<node pkg="rosbag" type="play" name="rosbag" args="--clock -r 1 $(arg rosbag)"/>
+<!-- <node pkg="tf" type="static_transform_publisher" name="base_link_to_camera_init"  args="0 0 0 0 0 0 /camera_init /base_link  10" />
+<node pkg="tf" type="static_transform_publisher" name="lidar_sensor_to_camera_init"  args="-0.08 0 0.7 0 0 0  /sensor_hesai /base_link 10" />
+<node pkg="tf" type="static_transform_publisher" name="camera_init_to_imu"  args="0.19 0 0.149 0 -1.5708 3.1416  /imu_link /aft_mapped 500" /> -->
+
+
+
+
+</launch>

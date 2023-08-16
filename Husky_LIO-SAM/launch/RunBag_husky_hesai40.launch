@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="project" default="husky_lio_sam"/>
+
+
+<!--<node pkg="pcl_ali" type="pcl_ali_node"   name="pcl_ali_node"    output="screen" 	respawn="true"/>-->
+    
+    <!-- Parameters -->
+    <rosparam file="$(find husky_lio_sam)/config/params_husky_hesai40.yaml" command="load" />
+
+    <!--- LOAM -->
+    <include file="$(find husky_lio_sam)/launch/include/module_loam.launch" />
+
+    <!--- Robot State TF -->
+    <param name="robot_description" command="$(find xacro)/xacro $(find husky_lio_sam)/launch/include/config/HESAI40p.urdf.xacro --inorder" />
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true">
+        <!-- <param name="tf_prefix" value="$(env ROS_HOSTNAME)"/> -->
+    </node>
+
+
+    <!--- Run Navsat -->
+    <!-- <include file="$(find husky_lio_sam)/launch/include/module_navsat.launch" />    -->
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find husky_lio_sam)/launch/include/rosconsole/rosconsole_error.conf"/>
+    
+    <!-- EKF GPS-->
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_gps" respawn="true">
+        <remap from="odometry/filtered" to="odometry/navsat" />
+    </node>
+
+    <!-- Navsat -->
+    <node pkg="robot_localization" type="navsat_transform_node" name="navsat" respawn="true">
+        <!-- <rosparam param="datum">[42.35893211, -71.09345588, 0.0, world, base_link]</rosparam> -->
+        <remap from="imu/data" to="imu/data" />
+        <remap from="gps/fix" to="gps/fix" />
+        <remap from="odometry/filtered" to="odometry/navsat" />
+    </node>
+
+    <!--- Delay-->
+    <!-- <arg name="node_start_delay" default="10.0" />   -->
+<!---<node name="listener" pkg="roscpp_tutorials" type="listener" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " />-->
+
+
+    <!--- Run Rviz-->
+    <!-- <include file="$(find husky_lio_sam)/launch/include/module_rviz.launch" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' "/>  -->
+
+
+  <!--- Run Move Base  
+  <include file="$(find husky_navigation)/launch/exploration_demo.launch" launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' " >
+  </include>-->
+
+	<!--- 
+	<include file="$(find husky_navigation)/launch/hector_slam/hector_slam.launch" />
+  	<include file="$(find husky_navigation)/launch/move_base/move_base_dijkstra_teb.launch" />-->
+
+</launch>
