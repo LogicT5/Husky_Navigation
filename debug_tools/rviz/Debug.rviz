@@ -11,15 +11,11 @@ Panels:
         - /Sensing1/Odometry1/Shape1
         - /Sensing1/Odometry1/Covariance1
         - /Navigation1/Exploration1
-        - /Topo_confidence_map1
         - /Topo_confidence_map1/Odometry1
         - /MeshMap_Group1/PointCloud21
         - /MeshMap_Group1/PointCloud23
-        - /LIO-SAM1
         - /LIO-SAM1/Mapping1
-        - /FrameRegconstruction1
         - /FrameRegconstruction1/Debug1/debugNPointCloud1
-        - /test1
         - /test1/PointCloud22
         - /test1/PointCloud23
         - /test1/PointCloud24
@@ -43,7 +39,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: cloud_registered_raw
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -197,6 +193,8 @@ Visualization Manager:
           Value: false
         base_link:
           Value: true
+        base_link_map:
+          Value: true
         base_link_odom:
           Value: true
         camera:
@@ -246,6 +244,8 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
+          base_link_map:
+            {}
           odom:
             base_link:
               base_footprint:
@@ -638,7 +638,7 @@ Visualization Manager:
             {}
           Queue Size: 100
           Value: true
-      Enabled: true
+      Enabled: false
       Name: Topo_confidence_map
     - Class: rviz/Group
       Displays:
@@ -822,8 +822,8 @@ Visualization Manager:
             - Alpha: 1
               Autocompute Intensity Bounds: true
               Autocompute Value Bounds:
-                Max Value: 0.4294106066226959
-                Min Value: -1.3062076568603516
+                Max Value: 0.423683762550354
+                Min Value: -1.210471272468567
                 Value: true
               Axis: Z
               Channel Name: intensity
@@ -1027,13 +1027,12 @@ Visualization Manager:
               Marker Topic: /husky_lio_sam/mapping/loop_closure_constraints
               Name: loop_closure_constraints
               Namespaces:
-                loop_edges: true
-                loop_nodes: true
+                {}
               Queue Size: 5
               Value: true
           Enabled: true
           Name: Mapping
-      Enabled: true
+      Enabled: false
       Name: LIO-SAM
     - Class: rviz/Group
       Displays:
@@ -1142,13 +1141,13 @@ Visualization Manager:
       Enabled: false
       Name: FrameRegconstruction
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /surrounding_meshes
       Name: Frame_Fusion
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Class: rviz/Group
       Displays:
         - Class: rviz/Camera
@@ -1162,6 +1161,9 @@ Visualization Manager:
           Unreliable: false
           Value: false
           Visibility:
+            "":
+              Value: true
+              testPointCloud: true
             FrameRegconstruction:
               Debug:
                 Value: true
@@ -1344,8 +1346,40 @@ Visualization Manager:
           Use Fixed Frame: true
           Use rainbow: true
           Value: true
-      Enabled: true
+      Enabled: false
       Name: test
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Autocompute Intensity Bounds: true
+          Autocompute Value Bounds:
+            Max Value: 10
+            Min Value: -10
+            Value: true
+          Axis: Z
+          Channel Name: intensity
+          Class: rviz/PointCloud2
+          Color: 255; 255; 255
+          Color Transformer: Intensity
+          Decay Time: 0
+          Enabled: true
+          Invert Rainbow: false
+          Max Color: 255; 255; 255
+          Min Color: 0; 0; 0
+          Name: testPointCloud
+          Position Transformer: XYZ
+          Queue Size: 10
+          Selectable: true
+          Size (Pixels): 3
+          Size (m): 0.009999999776482582
+          Style: Flat Squares
+          Topic: /husky_mesh_map/test_clouds
+          Unreliable: false
+          Use Fixed Frame: true
+          Use rainbow: true
+          Value: true
+      Enabled: true
+      Name: MeshNavigation
   Enabled: true
   Global Options:
     Background Color: 46; 52; 54
@@ -1373,25 +1407,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 16.86359214782715
+      Distance: 18.082990646362305
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.07677122205495834
-        Y: -0.0015751253813505173
-        Z: -1.3073832988739014
+        X: 0.03274402767419815
+        Y: -0.05722097307443619
+        Z: -1.125565767288208
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7997966408729553
+      Pitch: 0.6197965145111084
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.7968363761901855
+      Yaw: 3.651836395263672
     Saved: ~
 Window Geometry:
   Camera:

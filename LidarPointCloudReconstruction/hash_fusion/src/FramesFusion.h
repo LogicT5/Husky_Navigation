@@ -143,7 +143,7 @@ public:
     void OutputPCFile(const pcl::PointCloud<pcl::PointXYZ> & vCloud, const std::vector<float> & vFeatures, bool bAllRecord = false);
 
 protected:
-
+    bool debug;
     //***file related***
     std::string m_sFileHead;
 

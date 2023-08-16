@@ -71,7 +71,8 @@ enum class SensorType
 
 class ParamServer
 {
-public:
+public: 
+    bool debug;
     ros::NodeHandle nh;
 
     std::string robot_id;
@@ -166,6 +167,7 @@ public:
 
     ParamServer()
     {
+        nh.param<bool>("husky_lio_sam/debug", debug, false);
         nh.param<bool>("husky_lio_sam/featureExtracted", featureExtracted, false);
         nh.param<bool>("husky_lio_sam/imuType", imuType, true);
 

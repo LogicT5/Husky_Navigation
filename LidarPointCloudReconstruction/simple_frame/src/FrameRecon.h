@@ -64,7 +64,7 @@ struct RosTimePoint{
 class FrameRecon{
 
  public:
-
+  bool debug;
   //*************Initialization function*************
   //Constructor
   FrameRecon(ros::NodeHandle & node,

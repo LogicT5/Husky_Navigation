@@ -177,6 +177,7 @@ Others: none
 
 bool FramesFusion::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 
+	nodeHandle.param("debug",debug,false);
  	//output file name
  	nodeHandle.param("file_output_path", m_sFileHead, std::string());
 	m_bOutputFiles = !m_sFileHead.empty();
@@ -935,8 +936,10 @@ void FramesFusion::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData
 	++m_iFusionFrameNum;
 
 	if(m_bSurfelFusion) {
-
-		std::cout << "fusion start \t";
+		#ifdef DEBUG
+        if(debug)
+		std::cout << "fusion start \t";}
+		#endif
 
 		struct timeval start;
 		gettimeofday(&start, NULL);
@@ -947,12 +950,16 @@ void FramesFusion::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData
 		gettimeofday(&end,NULL);
 		double frames_fusion_time = (end.tv_sec - start.tv_sec) * 1000.0 +(end.tv_usec - start.tv_usec) * 0.001;
 		
+		#ifdef DEBUG
+        if(debug){
 		std::cout << std::format_purple 
 			<< "The No. " << m_iFusionFrameNum 
 			<< ";\tframes_fusion_time: " << frames_fusion_time << "ms" 
-			<< std::format_white;
+			<< std::format_white;}
+		#endif
 		m_dAverageFusionTime += frames_fusion_time;
 		m_dMaxFusionTime = frames_fusion_time > m_dMaxFusionTime ? frames_fusion_time : m_dMaxFusionTime;
+		
 	}
 
 	// 点云抽稀
@@ -980,7 +987,10 @@ void FramesFusion::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData
 	struct timeval end;
 	gettimeofday(&end,NULL);
 	double voxelize_time = (end.tv_sec - start.tv_sec) * 1000.0 +(end.tv_usec - start.tv_usec) * 0.001;
-	std::cout << std::format_blue << ";\tvoxelize_time: " << voxelize_time << "ms" << std::format_white << std::endl;
+	#ifdef DEBUG
+    if(debug){
+	std::cout << std::format_blue << ";\tvoxelize_time: " << voxelize_time << "ms" << std::format_white << std::endl;}
+	#endif
 
 
 	// output point cloud with (depth & view) confidence
@@ -1134,10 +1144,13 @@ void FramesFusion::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
 	clock_t frames_fusion_time = 1000.0 * (clock() - start_time) / CLOCKS_PER_SEC;
 
 	++m_iReconstructFrameNum;
+	#ifdef DEBUG
+    if(debug){
 	std::cout << std::format_blue 
 		<< "The No. " << m_iReconstructFrameNum 
 		<< ";\tframes_fusion_time: " << frames_fusion_time << "ms" 
-		<< std::format_white << std::endl;
+		<< std::format_white << std::endl;}
+	#endif
 	m_dAverageReconstructTime += frames_fusion_time;
 	m_dMaxReconstructTime = frames_fusion_time > m_dMaxReconstructTime ? frames_fusion_time : m_dMaxReconstructTime;
 
@@ -1177,8 +1190,11 @@ void FramesFusion::HandleTrajectoryThread(const nav_msgs::Odometry & oTrajectory
 	int now_frame_num = m_iReconstructFrameNum++;
 
 	auto ModelingFunction = [&, now_frame_num]() {
-
-		std::cout << std::format_purple << "No. " << now_frame_num << " reconstruct start" << std::format_white << std::endl;
+		
+		#ifdef DEBUG
+        if(debug){
+		std::cout << std::format_purple << "No. " << now_frame_num << " reconstruct start" << std::format_white << std::endl;}
+		#endif
 
 		//get the reconstructed surfaces
 		pcl::PolygonMesh oResultMeshes;
@@ -1194,11 +1210,14 @@ void FramesFusion::HandleTrajectoryThread(const nav_msgs::Odometry & oTrajectory
 		struct timeval end;
 		gettimeofday(&end,NULL);
 		double frame_reconstruct_time = (end.tv_sec - start.tv_sec) * 1000.0 +(end.tv_usec - start.tv_usec) * 0.001;
+		#ifdef DEBUG
+        if(debug){
 		std::cout << std::format_blue 
 			<< "The No. " << now_frame_num
 			<< ";\tframes_reconstruct_time: " << frame_reconstruct_time << "ms" 
 			<< ";\tgen_face_num: " << oResultMeshes.polygons.size()
-			<< std::format_white << std::endl;
+			<< std::format_white << std::endl;}
+		#endif
 		m_dAverageReconstructTime += frame_reconstruct_time;
 		m_dMaxReconstructTime = frame_reconstruct_time > m_dMaxReconstructTime ? frame_reconstruct_time : m_dMaxReconstructTime;
 

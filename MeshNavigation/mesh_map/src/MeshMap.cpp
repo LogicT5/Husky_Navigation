@@ -32,6 +32,34 @@ MeshMap::MeshMap(ros::NodeHandle & node, ros::NodeHandle & nodeHandle):
     m_oPlanNodePublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>("plannode_clouds", 1, true);
     m_oPastNodePublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>("pastnode_clouds", 1, true);
     m_oGoalPublisher = nodeHandle.advertise<nav_msgs::Odometry>("goal_odom", 1, true);
+
+    if(lidarFrame != baselinkFrame)
+    {
+        try
+        {
+            tf::TransformListener tfListener;
+            tf::StampedTransform lidar2Baselink; // 雷达系转为载体系
+            // 等待3s
+            tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time(0), ros::Duration(3.0));
+            // lidar系到baselink系的变换
+            tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time(0), lidar2Baselink);
+            // 获取位移和旋转分量
+            tf::Vector3 translation =lidar2Baselink.inverse().getOrigin();
+            tf::Quaternion rotation = lidar2Baselink.inverse().getRotation();
+
+            // 将位移和旋转转换为Eigen类型
+            Eigen::Vector3d translation_eigen(translation.x(), translation.y(), translation.z());
+            Eigen::Quaterniond rotation_eigen(rotation.w(), rotation.x(), rotation.y(), rotation.z());
+
+            // 创建变换矩阵
+            Lidar2BaselinkTF.block<3, 3>(0, 0) = rotation_eigen.toRotationMatrix();
+            Lidar2BaselinkTF.block<3, 1>(0, 3) = translation_eigen;
+        }
+        catch (tf::TransformException ex)
+        {
+            ROS_ERROR("%s",ex.what());
+        }
+    }
 }
 
 MeshMap::~MeshMap()
@@ -42,6 +70,8 @@ bool MeshMap::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
     //input topic
     nodeHandle.param("odom_in_topic", m_sOdomTopic, std::string("/odometry/filtered"));
     nodeHandle.param("mesh_in_topic",m_sMeshTopic,std::string("/frame_meshs"));
+    nodeHandle.param<std::string>("lidarFrame", lidarFrame, "base_link");
+    nodeHandle.param<std::string>("baselinkFrame", baselinkFrame, "base_link");
 
     //outpt topic 
     nodeHandle.param("map_test_clouds",m_oTestCloudTopic,std::string("/test_clouds"));
@@ -221,30 +251,46 @@ double MeshMap::CosineSimilarity(pcl::PointNormal vPoint,pcl::PointCloud<pcl::Po
 
 void MeshMap::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsgs)
 {
-    if(NextNodeFlag)
+    #ifdef DEBUG
+    std::cout << "\033[1;31m" << "[ MeshNavigation DEBUG ] " << "\033[1;33m" << "HandleCloudNormal" << std::endl;
+    #endif
+    // if(NextNodeFlag)
+    if(true)
     {
         NextNodeFlag = !NextNodeFlag;
         //a point clouds in PCL type
+        pcl::PointCloud<pcl::PointNormal>::Ptr pinFramePN(new pcl::PointCloud<pcl::PointNormal>);
         pcl::PointCloud<pcl::PointNormal>::Ptr pFramePN(new pcl::PointCloud<pcl::PointNormal>);
         pcl::PointCloud<pcl::PointNormal>::Ptr pGroundPN(new pcl::PointCloud<pcl::PointNormal>); // segmented ground plane
         pcl::PointCloud<pcl::PointNormal>::Ptr pNongroundPN(new pcl::PointCloud<pcl::PointNormal>); // everything else
 
         //message from ROS type to PCL type
-        pcl::fromROSMsg(oMeshMsgs, *pFramePN);
+        pcl::fromROSMsg(oMeshMsgs, *pinFramePN);
+
+        if(lidarFrame != baselinkFrame)
+            pcl::transformPointCloud( *pinFramePN, *pFramePN, Lidar2BaselinkTF); 
 
         for(auto point:*pFramePN)
         {
             if(point.z < 0.1651)
-            {
+            {   
                 Eigen::Vector3d Vector_z(0,0,1);
-                Eigen::Vector3d PointNormal(point.normal_x,point.normal_y,point.normal_z);
-                if(Vector_z.dot(PointNormal) == Vector_z.norm() * PointNormal.norm())
+                Eigen::Vector3d PointNormal(point.normal_x, point.normal_y, point.normal_z );
+                std::cout << "\033[1;35m" << "[ < ] 0.1651 point: "        << "\033[1;36m" << point  << std::endl;
+                std::cout << "\033[1;35m" << "PointNormal: "        << "\033[1;36m" << PointNormal  << std::endl;
+                std::cout << "\033[1;35m" << "PointNormal.norm(): "        << "\033[1;36m" << PointNormal.norm()  << std::endl;
+                std::cout << "\033[1;35m" << "Vector_z.dot(PointNormal): "        << "\033[1;36m" << Vector_z.dot(PointNormal)  << std::endl;
+                std::cout << "\033[1;35m" << "Vector_z.norm() * PointNormal.norm(): "        << "\033[1;36m" << Vector_z.norm() * PointNormal.norm()  << std::endl;
+                if(abs(Vector_z.dot(PointNormal) - Vector_z.norm() * PointNormal.norm()) < 0.02)
                 {
                     pGroundPN->push_back(point);
                 }  
             }
         }
-        std::cout<< pGroundPN->points.size()<<std::endl;
+        #ifdef DEBUG
+        std::cout << "\033[1;35m" << "pGroundPN size: "        << "\033[1;36m" << pGroundPN->points.size()  << std::endl;
+        std::cout << "\033[0m" << std::endl;}
+        #endif
         PublishPointCloud(*pGroundPN);
     }
 }

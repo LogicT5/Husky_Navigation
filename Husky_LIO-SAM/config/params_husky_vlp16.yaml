@@ -1,5 +1,6 @@
 husky_lio_sam:
   # ADD  params
+  debug: false
   featureExtracted: true  #true:特征提取 false:不进行特征提取
   imuType: true  #true: 9轴 false: 6轴
 

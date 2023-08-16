@@ -47,8 +47,9 @@ void FrameRecon::LazyLoading() {
     m_oAdditionalPointPublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>(m_sAdditionalPointTopic, 1, true); //发布补充的点云
 
 	#ifdef DEBUG
+        if(debug){
 	  	debugSubOdome = nodeHandle.advertise<nav_msgs::Odometry>("/FrameRecon/Debug/Subodom",1,true);
-		debugNPointCloud = nodeHandle.advertise<sensor_msgs::PointCloud2>("/FrameRecon/Debug/NPointCloud", 1, true); //发布补充的点云
+		debugNPointCloud = nodeHandle.advertise<sensor_msgs::PointCloud2>("/FrameRecon/Debug/NPointCloud", 1, true);} //发布补充的点云
 	#endif
 }
 
@@ -112,6 +113,7 @@ Others: none
 
 bool FrameRecon::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 
+	nodeHandle.param("debug",debug,false);
 	//output file name
 	node.param("sf_output_path", m_sFileHead, std::string());
 	if(m_sFileHead.empty())
@@ -418,8 +420,11 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 
 	if (!(m_iPCFrameCount % m_iFrameSmpNum)){ //根据帧采样频率记录
 
+		#ifdef DEBUG
+        if(debug){
 		std::cout << "Now frame count is: " << m_iPCFrameCount << ";\t"
-			<< "header is: {" << vLaserData.header << "}";
+			<< "header is: {" << vLaserData.header << "}";}
+		#endif
 		m_iTotalFrameNum = vLaserData.header.seq + 1;
 
 		struct timeval start;
@@ -453,7 +458,10 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		if(vLaserData.fields.size() == 4)  //velodyne  sensor_msgs::PointCloud2 {point x y z}
 		{
 			int N_SCANS = m_iLidarLineMax - m_iLidarLineMin + 1;
-			std::cout << ";\tN_SCANS: " << N_SCANS;
+			#ifdef DEBUG
+        	if(debug){
+			std::cout << ";\tN_SCANS: " << N_SCANS;}
+			#endif
 
 			for(int i = 0;i < pRawCloud->points.size();++i)
 			{
@@ -543,15 +551,17 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		}
 
 		#ifdef DEBUG
+        	if(debug){
 		    sensor_msgs::PointCloud2 pubCloudData;
 			pcl::toROSMsg(*pRawCloud, pubCloudData);
 			pubCloudData.header.frame_id = m_sOutCloudTFId;
 			pubCloudData.header.stamp = ros::Time::now();
-			debugNPointCloud.publish(pubCloudData);
+			debugNPointCloud.publish(pubCloudData);}
 		#endif
-
-		std::cout << ";\tsize: " << pRawCloud->size();
-		
+		#ifdef DEBUG
+        if(debug){
+			std::cout << ";\tsize: " << pRawCloud->size();}
+		#endif
 
 		// point sample
 		pcl::PointCloud<pcl::PointXYZI>::Ptr pSceneCloud(new pcl::PointCloud<pcl::PointXYZI>);
@@ -595,7 +605,10 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		struct timeval reconstruct_end;
 		gettimeofday(&reconstruct_end,NULL);
 		double parallel_time = (reconstruct_end.tv_sec - reconstruct_start.tv_sec) * 1000.0 +(reconstruct_end.tv_usec - reconstruct_start.tv_usec) * 0.001;
-		std::cout << "\trecon_time:" << parallel_time << "ms";
+		#ifdef DEBUG
+        if(debug){
+		std::cout << "\trecon_time:" << parallel_time << "ms";}
+		#endif
 
 		//************output value******************
 		// for(int i=0;i!=pFramePNormal->points.size();++i)
@@ -688,7 +701,10 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		struct timeval end;
 		gettimeofday(&end,NULL);
 		double frame_reconstruct_time = (end.tv_sec - start.tv_sec) * 1000.0 +(end.tv_usec - start.tv_usec) * 0.001;
-		std::cout << ";\tframe_time:" << frame_reconstruct_time << "ms" << std::endl;
+		#ifdef DEBUG
+        if(debug){
+		std::cout << ";\tframe_time:" << frame_reconstruct_time << "ms" << std::endl;}
+		#endif
 		outTimeFile<<"sf_"<< std::setw(4) << std::setfill('0') << m_iReconstructFrameNum<<"_mesh "<<frame_reconstruct_time<<"ms\n";
 		m_dAverageReconstructTime += frame_reconstruct_time;
 		m_dMaxReconstructTime = frame_reconstruct_time > m_dMaxReconstructTime ? frame_reconstruct_time : m_dMaxReconstructTime;
@@ -720,9 +736,10 @@ Others: none
 void FrameRecon::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
 {
  #ifdef DEBUG
+    if(debug){
 	std::cout << std::format_yellow << "Now Odome count is: " << m_iTrajCount << ";\t"
 		<< "header is: {" << oTrajectory.header << "}" << "\tPose: (" << oTrajectory.pose.pose.position.x << ","
-		<< oTrajectory.pose.pose.position.y << "," << oTrajectory.pose.pose.position.z << ")" << std::format_white << std::endl;
+		<< oTrajectory.pose.pose.position.y << "," << oTrajectory.pose.pose.position.z << ")" << std::format_white << std::endl;}
 #endif
 	//count input frames
 	//m_iTrajPointNum++;
@@ -762,10 +779,11 @@ void FrameRecon::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
 	m_iTrajCount++;
 
 #ifdef DEBUG
+    if(debug){
 	nav_msgs::Odometry testOdometry;
 	testOdometry = oTrajectory;
 	// testOdometry.pose.pose.position.z = testOdometry.pose.pose.position.z;
-	debugSubOdome.publish(testOdometry);
+	debugSubOdome.publish(testOdometry);}
 #endif
 }
 

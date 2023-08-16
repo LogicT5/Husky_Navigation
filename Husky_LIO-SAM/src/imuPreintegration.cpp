@@ -82,10 +82,11 @@ public:
     {
         ///*Debug
         #ifdef DEBUG
+        if(debug){
         std::cout << "\033[1;31m[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "TransformFusion" << std::endl;
         std::cout << "\033[1;35mlidarFrame:     "     << "\033[1;36m" << lidarFrame        << std::endl;
         std::cout << "\033[1;35mbaselinkFrame:  "     << "\033[1;36m" << baselinkFrame     << std::endl;
-        std::cout << "\033[0m" << std::endl;
+        std::cout << "\033[0m" << std::endl;}
         #endif//*/
         // 如果lidar系与baselink系不同（激光系和载体系），需要外部提供二者之间的变换关系
         // 获取lidar系到baselink系 的坐标变换
@@ -103,10 +104,11 @@ public:
 
                 ///*Debug
                 #ifdef DEBUG
+                if(debug){
                 std::cout << "\033[1;31m[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "TransformFusion" << std::endl;
                 std::cout << "\033[1;35m" << "Translation: "  << "\033[1;36m" << std::setw(5) << lidar2Baselink.getOrigin().getX()   << ", " << std::setw(5) << lidar2Baselink.getOrigin().getY()   << ", " << std::setw(5) << lidar2Baselink.getOrigin().getZ() << std::endl;
                 std::cout << "\033[1;35m" << "Rotation:    "  << "\033[1;36m" << std::setw(5) << lidar2Baselink.getRotation().getX() << ", " << std::setw(5) << lidar2Baselink.getRotation().getY() << ", " << std::setw(5) << lidar2Baselink.getRotation().getZ() << ", " << std::setw(5) << lidar2Baselink.getRotation().getW();
-                std::cout << "\033[0m" << std::endl;//*/
+                std::cout << "\033[0m" << std::endl;}//*/
                 #endif
             }
             catch (tf::TransformException ex)

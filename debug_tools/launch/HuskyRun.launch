@@ -2,6 +2,8 @@
     
   <arg name="WorldName" default="clearpath_playpen" doc="Gazebo World Name"/>
 
+  <arg name="Navigation" default="true" doc="Navigation method"/>
+
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find husky_gazebo)/worlds/$(arg WorldName).world"/>
     <arg name="paused" value="false"/>
@@ -61,9 +63,13 @@
     <arg name="no_static_map" value="true"/>
   </include> -->
 
+<group if="$(arg Navigation)">
+      <include file="$(find mesh_map)/launch/mesh_map.launch"/>
+</group>
+<group unless="$(arg Navigation)">
     <!-- A node which estimates the ground, obstacle and boundary points using gp-insac algorithm-->
   <include file="$(find travelable_region)/launch/gpinsac.launch">
-    <arg name="outputpath" default="/home/ludy/" />
+    <!-- <arg name="outputpath" default="/home/ludy/" /> -->
     <arg name="txtoutputflag" default="false" />
     <!--input parameters--> 
     <!-- mesh map use samplingnumber=13 -->
@@ -88,15 +94,14 @@
     <arg name="insacdata" default="0.8"/>
   </include>
 
-
   <include file="$(find topo_confidence_map)/launch/mapping.launch">
-    <!-- <arg name="odomintopic" default="/husky_lio_sam/mapping/odometry"/> -->
     <arg name="mapframeid" default="base_link_odom" />
   </include>
+
   <include file="$(find husky_navigation_goals)/launch/send_goal.launch">
     <arg name="goalodomtopic" default="/topology_map/goal_odom" />
   </include>
-
+</group>
 
 
 </launch>

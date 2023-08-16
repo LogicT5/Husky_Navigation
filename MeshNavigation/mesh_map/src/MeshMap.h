@@ -64,6 +64,7 @@ typedef struct TrajectoryPoint{
 
 } TrajectoryPoint;
 
+Eigen::Matrix4d Lidar2BaselinkTF;
 //input topics:
 ros::Subscriber m_oOdomSuber;//the subscirber is to hear (record) odometry from gazebo
 ros::Subscriber m_sMeshSuber;// the subscirber is to hea frame reconstruction from frame_reconstruction nod
@@ -71,6 +72,8 @@ ros::Subscriber m_sCloudNormalsSuber;
 
 std::string m_sOdomTopic;  //the topic name of targeted odometry (robot trajectory)
 std::string m_sMeshTopic;//the topic name of targeted frame_reconstruction
+std::string lidarFrame;
+std::string baselinkFrame;
 
 
 //**output topics related**

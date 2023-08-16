@@ -290,9 +290,10 @@ public:
             {
                 ///*Debug
                 #ifdef DEBUG
+                if(debug){
                 std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cloudHandler" << std::endl;
                 std::cout << "\033[1;35m" << " cachePointCloud(laserCloudMsg)  return :  "<< "\033[1;36m"<< std::endl;
-                std::cout << "\033[0m" << std::endl;
+                std::cout << "\033[0m" << std::endl;}
                 #endif//*/
                 return;
             }
@@ -301,9 +302,10 @@ public:
             {
                 ///*Debug
                 #ifdef DEBUG
+                if(debug){
                 std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cloudHandler" << std::endl;
                 std::cout << "\033[1;35m" << " deskewInfo()  return :  "<< "\033[1;36m"<< std::endl;
-                std::cout << "\033[0m" << std::endl;
+                std::cout << "\033[0m" << std::endl;}
                 #endif//*/
                 return;
             }
@@ -452,11 +454,12 @@ public:
         }
         ///*Debug
         #ifdef DEBUG
+        if(debug){
         std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cachePointCloud" << std::endl;
         std::cout << "\033[1;35m" << "SensorType:          "        << "\033[1;36m" << int(sensor)        << std::endl;
         std::cout << "\033[1;35m" << "laserCloudIn size: "        << "\033[1;36m" << laserCloudIn->points.size()   << std::endl;
-        std::cout << "\033[0m";
-#endif //*/
+        std::cout << "\033[0m";}
+        #endif //*/
 
         // get timestamp
         cloudHeader = currentCloudMsg.header;                         // 当前帧头部
@@ -464,9 +467,10 @@ public:
         timeScanEnd = timeScanCur + laserCloudIn->points.back().time; // 当前帧结束时刻
         // 注：点云中激光点的time记录相对于当前帧第一个激光点的时差，第一个点time=0
         #ifdef DEBUG
+        if(debug){
         std::cout << "\033[1;35m" << "timeScanCur:  "        << "\033[1;36m" << timeScanCur        << std::endl;
         std::cout << "\033[1;35m" << "timeScanEnd:  "        << "\033[1;36m" << timeScanEnd   << std::endl;
-        std::cout << "\033[0m" << std::endl;
+        std::cout << "\033[0m" << std::endl;}
         #endif//*/
 
         // check dense flag 是否存在无效点
@@ -935,9 +939,10 @@ public:
         }
         ///*Debug
         #ifdef DEBUG
+        if(debug){
         std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-projectPointCloud" << std::endl;
         std::cout << "\033[1;35m" << "fullCloud size: "        << "\033[1;36m" <<  fullCloud->points.size()   << std::endl;
-        std::cout << "\033[0m" << std::endl;
+        std::cout << "\033[0m" << std::endl;}
         #endif//*/
     }
 
