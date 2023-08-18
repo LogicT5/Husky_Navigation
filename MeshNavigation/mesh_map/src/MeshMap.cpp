@@ -2,36 +2,42 @@
 
 namespace mesh_map{
 MeshMap::MeshMap(ros::NodeHandle & node, ros::NodeHandle & nodeHandle):
-                m_pBoundCloud(new pcl::PointCloud<pcl::PointXYZ>),
-                m_pPlanNodeCloud(new pcl::PointCloud<pcl::PointXYZ>),
-                m_pPastNodeCloud(new pcl::PointCloud<pcl::PointXYZ>),
-                PlanCloud(new pcl::PointCloud<pcl::PointNormal>),
-                MeshTree(new octomap::ColorOcTree(0.05)),
-                NextNodeFlag(true)
+                n_pPlanNodeCloud(new pcl::PointCloud<pcl::PointXYZ>),
+                n_pPastNodeCloud(new pcl::PointCloud<pcl::PointXYZ>),
+                n_pPreselectionCloud(new pcl::PointCloud<pcl::PointNormal>),
+                m_pMeshMapTree(new OcTreeT(0.05)),
+                m_pGroundPN(new pcl::PointCloud<pcl::PointNormal>),
+                m_pNongroundPN(new pcl::PointCloud<pcl::PointNormal>),
+                m_pBoundPN(new pcl::PointCloud<pcl::PointNormal>),
+                n_NextGoalNodeFlag(true)
 {
     srand((unsigned)time(NULL));
 
 	//read parameters
 	ReadLaunchParams(nodeHandle);
-    MeshTree->setResolution(VoxelsSize);
+    m_pMeshMapTree->setResolution(MapVoxelsSize);
 
     //subscribe (hear) the odometry information
-	// m_oOdomSuber = nodeHandle.subscribe(m_sOdomTopic, 1, &MeshMap::HandleTrajectory, this);
+	OdomSub = nodeHandle.subscribe(sub_OdomTopic, 1, &MeshMap::HandleTrajectory, this);
     	
     // m_sMeshSuber = nodeHandle.subscribe(m_sMeshTopic,1,&MeshMap::HandleMesh,this);
 
-    m_sCloudNormalsSuber = nodeHandle.subscribe("/frame_cloudnormals",1,&MeshMap::HandleCloudNormals,this);
+    CloudNormalsSub = nodeHandle.subscribe("/frame_cloudnormals",1,&MeshMap::HandleCloudNormals,this);
+    
 
     // m_oOdomSuber = nodeHandle.subscribe(m_sOdomTopic, 1, &MeshMap::HandleTrajectory, this);
 	// m_oGroundSuber = nodeHandle.subscribe(m_sGroundTopic, 1, &MeshMap::HandleGroundClouds, this);
 	// m_oBoundSuber = nodeHandle.subscribe(m_sBoundTopic, 1, &MeshMap::HandleBoundClouds, this);
 	// m_oObstacleSuber = nodeHandle.subscribe(m_sObstacleTopic, 1, &MeshMap::HandleObstacleClouds, this);
 
-    m_oTestCloudPublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>("test_clouds", 1, true);
-    m_oMeshPublisher = nodeHandle.advertise<visualization_msgs::Marker>("map_meshs", 1, true);
-    m_oPlanNodePublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>("plannode_clouds", 1, true);
-    m_oPastNodePublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>("pastnode_clouds", 1, true);
-    m_oGoalPublisher = nodeHandle.advertise<nav_msgs::Odometry>("goal_odom", 1, true);
+    debug_CloudPub = nodeHandle.advertise<sensor_msgs::PointCloud2>("debug_clouds", 1, true);
+    n_PreseNodePub = nodeHandle.advertise<sensor_msgs::PointCloud2>("presenode_clouds",1,true);
+    n_PlanNodePub = nodeHandle.advertise<sensor_msgs::PointCloud2>("plannode_clouds", 1, true);
+    n_PastNodePub = nodeHandle.advertise<sensor_msgs::PointCloud2>("pastnode_clouds", 1, true);
+    n_GoalNodePub = nodeHandle.advertise<nav_msgs::Odometry>("goal_odom", 1, true);
+
+    m_binaryMapPub = nodeHandle.advertise<octomap_msgs::Octomap>("octomap_binary", 1, true);
+    m_fullMapPub = nodeHandle.advertise<octomap_msgs::Octomap>("octomap_full", 1, true);
 
     if(lidarFrame != baselinkFrame)
     {
@@ -39,10 +45,16 @@ MeshMap::MeshMap(ros::NodeHandle & node, ros::NodeHandle & nodeHandle):
         {
             tf::TransformListener tfListener;
             tf::StampedTransform lidar2Baselink; // 雷达系转为载体系
+            tf::TransformBroadcaster tfOdom2BaseLinkOdomFrame;
+            tf::TransformBroadcaster tfMap2BaseLinkMapFrame;
             // 等待3s
-            tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time(0), ros::Duration(3.0));
+            tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time(0), ros::Duration(10.0));
             // lidar系到baselink系的变换
             tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time(0), lidar2Baselink);
+
+            // tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time(0), "odom","base_link_odom"));
+            // tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time(0), "odom","base_link_map"));       
+
             // 获取位移和旋转分量
             tf::Vector3 translation =lidar2Baselink.inverse().getOrigin();
             tf::Quaternion rotation = lidar2Baselink.inverse().getRotation();
@@ -52,8 +64,17 @@ MeshMap::MeshMap(ros::NodeHandle & node, ros::NodeHandle & nodeHandle):
             Eigen::Quaterniond rotation_eigen(rotation.w(), rotation.x(), rotation.y(), rotation.z());
 
             // 创建变换矩阵
-            Lidar2BaselinkTF.block<3, 3>(0, 0) = rotation_eigen.toRotationMatrix();
-            Lidar2BaselinkTF.block<3, 1>(0, 3) = translation_eigen;
+            Lidar2BaselinkTF4d.block<3, 3>(0, 0) = rotation_eigen.toRotationMatrix();
+            Lidar2BaselinkTF4d.block<3, 1>(0, 3) = translation_eigen;
+            ///*Debug
+            #ifdef DEBUG
+                std::cout<<"\033[31mMeshNavigation DEBUG \033[1m\033[34mlidar2Baselink:";
+                std::cout << "  Translation: " << lidar2Baselink.getOrigin().getX() << ", " << lidar2Baselink.getOrigin().getY() << ", " << lidar2Baselink.getOrigin().getZ();
+                std::cout << "  Rotation: " << lidar2Baselink.getRotation().getW()<< ", " << lidar2Baselink.getRotation().getX() << ", " << lidar2Baselink.getRotation().getY() << ", " << lidar2Baselink.getRotation().getZ();
+                std::cout <<std::endl;
+                std::cout <<Lidar2BaselinkTF4d<<std::endl;
+                std::cout << "\033[0m"<<std::endl;//*/
+            #endif
         }
         catch (tf::TransformException ex)
         {
@@ -68,49 +89,61 @@ MeshMap::~MeshMap()
 bool MeshMap::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 
     //input topic
-    nodeHandle.param("odom_in_topic", m_sOdomTopic, std::string("/odometry/filtered"));
-    nodeHandle.param("mesh_in_topic",m_sMeshTopic,std::string("/frame_meshs"));
+    nodeHandle.param("odom_in_topic", sub_OdomTopic, std::string("/husky_lio_sam/mapping/odometry"));
     nodeHandle.param<std::string>("lidarFrame", lidarFrame, "base_link");
     nodeHandle.param<std::string>("baselinkFrame", baselinkFrame, "base_link");
+    
+    if(lidarFrame != baselinkFrame)
+    {
+        pub_CloudFrame = "base_link_odom";
+        pub_MapFrame = "base_link_map";
+        pub_GoalOdomFrame = "base_link_odom"; 
+    }
+    else
+    {
+        pub_CloudFrame = "odom";
+        pub_MapFrame = "map";
+        pub_GoalOdomFrame = "odom";
+    }
 
-    //outpt topic 
-    nodeHandle.param("map_test_clouds",m_oTestCloudTopic,std::string("/test_clouds"));
-    nodeHandle.param("map_mesh_topic",m_oOutMeshTopic,std::string("/map_meshs"));
-
-    //output test point cloud TFID 
-    nodeHandle.param("outcloud_tf_id", m_sOutCloudTFId, std::string("odom"));
-    // nodeHandle.param("outcloud_tf_id", m_sOutCloudTFId, std::string("camera_init"));
-
-	return true;
+    return true;
 }
 
 void MeshMap::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
 {
     pcl::PointXYZ oOdomPoint;
-    oOdomPoint.x = oTrajectory.pose.pose.position.x;//z in loam is x
+    oOdomPoint.x = oTrajectory.pose.pose.position.x; // z in loam is x
     oOdomPoint.y = oTrajectory.pose.pose.position.y;//x in loam is y
     oOdomPoint.z = oTrajectory.pose.pose.position.z;//y in loam is z
 
-    if(!NextNodeFlag)
+    if(lidarFrame != baselinkFrame)
     {
-        if(abs(oOdomPoint.x - m_oNodeGoal.x) < 0.2)
-            if(abs(oOdomPoint.y - m_oNodeGoal.y) < 0.2)
-                if(abs(oOdomPoint.z - m_oNodeGoal.z) < 0.2+0.583)
+        Eigen::Affine3f Lidar2BaselinkTF3f;
+        Lidar2BaselinkTF3f.matrix() = Lidar2BaselinkTF4d.cast<float>();
+        pcl::transformPoint(oOdomPoint, Lidar2BaselinkTF3f);
+    }
+    // pcl::transformPointCloud( *pFramePN, *pFramePN, Lidar2BaselinkTF4d);
+    if(!n_NextGoalNodeFlag)
+    {
+        // std::cout<<"OdomPoint: "<<oOdomPoint<<"   GoalPoint: "<<n_GoalNode<<std::endl;
+        if(abs(oOdomPoint.x - n_GoalNode.x) < 0.2)
+            if(abs(oOdomPoint.y - n_GoalNode.y) < 0.2)
+                if(abs(oOdomPoint.z - n_GoalNode.z) < 0.2+0.583)
                 {
-                    NextNodeFlag = !NextNodeFlag;
-                    // std::cout<<"OdomPoint: "<<oOdomPoint<<"   GoalPoint: "<<m_oNodeGoal<<std::endl;
-                    m_pPastNodeCloud->push_back(m_pPlanNodeCloud->points.back());
-                    m_pPlanNodeCloud->clear();
+                    n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
+                    n_pPastNodeCloud->push_back(n_pPlanNodeCloud->points.back());
+                    n_pPlanNodeCloud->clear();
+                    n_pPreselectionCloud->clear();
                     PublishPastNodeClouds();
                 }
     }
 }
 
 void MeshMap::HandleMesh(const visualization_msgs::Marker &oMeshMsgs)
-{
-    if(NextNodeFlag)
+{/*
+    if(n_NextGoalNodeFlag)
     {
-        NextNodeFlag = !NextNodeFlag;
+        n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
         pcl::PointCloud<pcl::PointXYZ>::Ptr verMeshCloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::PointCloud<pcl::PointNormal>::Ptr pMapCloud(new pcl::PointCloud<pcl::PointNormal>);
 
@@ -197,7 +230,7 @@ void MeshMap::HandleMesh(const visualization_msgs::Marker &oMeshMsgs)
                     PlanCloud->push_back(pSamplingMapCloud->points[i]);
                 }
         }
-        // std::cout<<"NextNodeFlag: "<<NextNodeFlag<<std::endl;
+        // std::cout<<"n_NextGoalNodeFlag: "<<n_NextGoalNodeFlag<<std::endl;
 
         //余弦相似性 计算周围法向量的一致性选点
         double CosSim = 0.0;
@@ -233,7 +266,7 @@ void MeshMap::HandleMesh(const visualization_msgs::Marker &oMeshMsgs)
         PublishGoalOdom(m_oNodeGoal);
 
         PlanCloud->clear();
-    }
+    }//*/
 }
 
 double MeshMap::CosineSimilarity(pcl::PointNormal vPoint,pcl::PointCloud<pcl::PointNormal>::Ptr vCloud,std::vector<int> indices ){
@@ -251,146 +284,124 @@ double MeshMap::CosineSimilarity(pcl::PointNormal vPoint,pcl::PointCloud<pcl::Po
 
 void MeshMap::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsgs)
 {
-    #ifdef DEBUG
-    std::cout << "\033[1;31m" << "[ MeshNavigation DEBUG ] " << "\033[1;33m" << "HandleCloudNormal" << std::endl;
-    #endif
-    // if(NextNodeFlag)
-    if(true)
+
+    //a point clouds in PCL type
+    pcl::PointCloud<pcl::PointNormal>::Ptr pFramePN(new pcl::PointCloud<pcl::PointNormal>);
+    pcl::fromROSMsg(oMeshMsgs, *pFramePN);
+    if(lidarFrame != baselinkFrame)
+        pcl::transformPointCloud( *pFramePN, *pFramePN, Lidar2BaselinkTF4d); 
+
+    for(auto point:*pFramePN)
     {
-        NextNodeFlag = !NextNodeFlag;
-        //a point clouds in PCL type
-        pcl::PointCloud<pcl::PointNormal>::Ptr pinFramePN(new pcl::PointCloud<pcl::PointNormal>);
-        pcl::PointCloud<pcl::PointNormal>::Ptr pFramePN(new pcl::PointCloud<pcl::PointNormal>);
-        pcl::PointCloud<pcl::PointNormal>::Ptr pGroundPN(new pcl::PointCloud<pcl::PointNormal>); // segmented ground plane
-        pcl::PointCloud<pcl::PointNormal>::Ptr pNongroundPN(new pcl::PointCloud<pcl::PointNormal>); // everything else
+        Eigen::Vector3d Vector_z(0,0,1);
+        Eigen::Vector3d PointNormal(point.normal_x, point.normal_y, point.normal_z );
 
-        //message from ROS type to PCL type
-        pcl::fromROSMsg(oMeshMsgs, *pinFramePN);
+        
+        
+        if(point.z < 0.005)
+        {   
+            if(abs(Vector_z.dot(PointNormal) - Vector_z.norm() * PointNormal.norm()) < 0.01)
+            {
+                m_pGroundPN->push_back(point);
 
-        if(lidarFrame != baselinkFrame)
-            pcl::transformPointCloud( *pinFramePN, *pFramePN, Lidar2BaselinkTF); 
-
-        for(auto point:*pFramePN)
-        {
-            if(point.z < 0.1651)
-            {   
-                Eigen::Vector3d Vector_z(0,0,1);
-                Eigen::Vector3d PointNormal(point.normal_x, point.normal_y, point.normal_z );
-                std::cout << "\033[1;35m" << "[ < ] 0.1651 point: "        << "\033[1;36m" << point  << std::endl;
-                std::cout << "\033[1;35m" << "PointNormal: "        << "\033[1;36m" << PointNormal  << std::endl;
-                std::cout << "\033[1;35m" << "PointNormal.norm(): "        << "\033[1;36m" << PointNormal.norm()  << std::endl;
-                std::cout << "\033[1;35m" << "Vector_z.dot(PointNormal): "        << "\033[1;36m" << Vector_z.dot(PointNormal)  << std::endl;
-                std::cout << "\033[1;35m" << "Vector_z.norm() * PointNormal.norm(): "        << "\033[1;36m" << Vector_z.norm() * PointNormal.norm()  << std::endl;
-                if(abs(Vector_z.dot(PointNormal) - Vector_z.norm() * PointNormal.norm()) < 0.02)
-                {
-                    pGroundPN->push_back(point);
-                }  
+                m_pMeshMapTree->updateNode(octomap::point3d(point.x, point.y, point.z), true);
+                m_pMeshMapTree->integrateNodeColor(point.x,point.y,point.z,240,255,255);
+                // 更新octomap
+                m_pMeshMapTree->updateInnerOccupancy();
+            }  
+            else
+            {
+                
+                // m_pMeshMapTree->updateInnerOccupancy();
             }
         }
-        #ifdef DEBUG
-        std::cout << "\033[1;35m" << "pGroundPN size: "        << "\033[1;36m" << pGroundPN->points.size()  << std::endl;
-        std::cout << "\033[0m" << std::endl;}
-        #endif
-        PublishPointCloud(*pGroundPN);
+        else
+        {
+            if(abs(Vector_z.dot(PointNormal) - Vector_z.norm() * PointNormal.norm()) > 0.01)
+            {
+                m_pNongroundPN->push_back(point);
+
+                m_pMeshMapTree->updateNode(octomap::point3d(point.x, point.y, point.z), true);
+                m_pMeshMapTree->integrateNodeColor(point.x,point.y,point.z,255,165,0);
+            }
+        }
+    }
+
+    m_pMeshMapTree->updateInnerOccupancy();
+    PublishFullOctoMap(*m_pMeshMapTree);
+    if(n_NextGoalNodeFlag)
+    {
+        n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
+        MeshBoundary(pFramePN,m_pBoundPN);
+        FilterPreselectionPoints(m_pGroundPN);
+        FilterTargetPoint();
+        PublishGoalOdom(n_GoalNode);
+    }
+    
+    PublishPointCloud(debug_CloudPub,*m_pBoundPN);
+    PublishPlanNodeClouds();
+    PublishPreseNodeClouds();
+    
+}
+
+void MeshMap::FilterPreselectionPoints(pcl::PointCloud<pcl::PointNormal>::Ptr pGroundPN)
+{
+
+    pcl::PointCloud<pcl::PointNormal>::Ptr pBoundaryPN(new pcl::PointCloud<pcl::PointNormal>);
+    // MeshBoundary(pGroundPN,pBoundaryPN);
+    pBoundaryPN = m_pBoundPN;
+
+    pcl::UniformSampling<pcl::PointNormal> us;
+    pcl::PointCloud<pcl::PointNormal>::Ptr pSamplingGroundCloud(new pcl::PointCloud<pcl::PointNormal>);
+    us.setInputCloud(pGroundPN );
+    us.setRadiusSearch(3.0f);
+    us.filter(*pSamplingGroundCloud);
+
+    pcl::search::KdTree<pcl::PointNormal> BoundTree;
+    BoundTree.setInputCloud(pBoundaryPN);
+    float max_dist = 2.5;
+    for(int i =0 ;i <pSamplingGroundCloud->points.size();++i)
+    {
+        std::vector<int> indices(1);
+        std::vector<float> sqr_distances(1);
+
+        pcl::PointNormal point = pSamplingGroundCloud->points[i];
+        // point.x = pSamplingGroundCloud->points[i].x;
+        // point.y = pSamplingGroundCloud->points[i].y;
+        // point.z = pSamplingGroundCloud->points[i].z;
+        BoundTree.nearestKSearch(point, 1, indices, sqr_distances);
+        if (sqr_distances[0] > max_dist )
+            if(sqrt(pow(point.x,2)+pow(point.y,2)) > 3)
+            {
+                // pMapCloud->points[i].z = pMapCloud->points[i].z+0.583;
+                // pMapCloud->points[i].z = 0.583;
+                n_pPreselectionCloud->push_back(pSamplingGroundCloud->points[i]);
+            }
     }
 }
 
-void MeshMap::PublishGoalOdom(pcl::PointXYZ & oGoalPoint){
+void MeshMap::FilterTargetPoint()
+{
+        //余弦相似性 计算周围法向量的一致性选点
+        double CosSim = 0.0;
+        pcl::search::KdTree<pcl::PointNormal> MapTree;
+        MapTree.setInputCloud(m_pGroundPN);
+        for(int i =0 ;i <n_pPreselectionCloud->points.size();++i)
+        {
+            std::vector<int> indices(10);
+            std::vector<float> sqr_distances(10);
 
-        nav_msgs::Odometry oCurrGoalOdom;
-        oCurrGoalOdom.header.stamp = ros::Time::now();
-        oCurrGoalOdom.header.frame_id = "odom";
-
-        //set the position
-        oCurrGoalOdom.pose.pose.position.x = oGoalPoint.x;
-        oCurrGoalOdom.pose.pose.position.y = oGoalPoint.y;
-        oCurrGoalOdom.pose.pose.position.z = oGoalPoint.z;
-        // oCurrGoalOdom.pose.pose.position.z = oGoalPoint.z + 0.583;
-
-        m_oGoalPublisher.publish(oCurrGoalOdom);
-
-}
-
-/*************************************************
-Function: PublishPlanNodeClouds
-Description: publish unvisited nodes as a point clouds (mainly used for display and test)
-Calls: none
-Called By: ComputeConfidence()
-Table Accessed: none
-Table Updated: none
-Input: none
-Output: m_oOPSolver.m_vAllNodes.point - a private variable of class object m_oOPSolver
-Return: none
-Others: none
-*************************************************/
-void MeshMap::PublishPlanNodeClouds(){
-  //publish obstacle points
-    // pcl::PointCloud<pcl::PointXYZ> vCloud;
-
-    // for(int i = 0; i != m_oOPSolver.m_vAllNodes.size(); ++i){
-    //    if(!m_oOPSolver.m_vAllNodes[i].visitedFlag){
-    //    	    pcl::PointXYZ oNodePoint;
-    //    	    oNodePoint.x = m_oOPSolver.m_vAllNodes[i].point.x;
-    //         oNodePoint.y = m_oOPSolver.m_vAllNodes[i].point.y;
-    //         oNodePoint.z = m_oOPSolver.m_vAllNodes[i].point.z;
-    //    	    vCloud.push_back(oNodePoint);
-
-    //    }
-    // }
-
-    sensor_msgs::PointCloud2 vCloudData;
-
-    pcl::toROSMsg(*m_pPlanNodeCloud, vCloudData);
-
-    // vCloudData.header.frame_id = m_oGMer.m_oFeatureMap.getFrameId();
-    vCloudData.header.frame_id = m_sOutCloudTFId;
-
-    vCloudData.header.stamp = ros::Time::now();
-
-    m_oPlanNodePublisher.publish(vCloudData);
-
-}
-
-/*************************************************
-Function: PublishPastNodeClouds
-Description: Publish visited nodes as a point clouds (mainly used for display and test)
-Calls: none
-Called By: ComputeConfidence()
-Table Accessed: none
-Table Updated: none
-Input: none
-Output: m_oOPSolver.m_vAllNodes.point - a private variable of class object m_oOPSolver
-Return: none
-Others: none
-*************************************************/
-void MeshMap::PublishPastNodeClouds(){
-  //publish obstacle points
-
-    // pcl::PointCloud<pcl::PointXYZ> vCloud;
-
-    // for(int i = 0; i != m_oOPSolver.m_vAllNodes.size(); ++i){
-    //    if(m_oOPSolver.m_vAllNodes[i].visitedFlag){
-
-    //    	    pcl::PointXYZ oNodePoint;
-    //    	    oNodePoint.x = m_oOPSolver.m_vAllNodes[i].point.x;
-    //         oNodePoint.y = m_oOPSolver.m_vAllNodes[i].point.y;
-    //         oNodePoint.z = m_oOPSolver.m_vAllNodes[i].point.z + 0.583;
-    //    	    vCloud.push_back(oNodePoint);
-
-    //    }
-    // }
-
-    sensor_msgs::PointCloud2 vCloudData;
-
-    pcl::toROSMsg(*m_pPastNodeCloud, vCloudData);
-
-    // vCloudData.header.frame_id = m_oGMer.m_oFeatureMap.getFrameId();
-    vCloudData.header.frame_id = m_sOutCloudTFId;
-
-    vCloudData.header.stamp = ros::Time::now();
-
-    m_oPastNodePublisher.publish(vCloudData);
-
+            MapTree.nearestKSearchT(n_pPreselectionCloud->points[i],10,indices,sqr_distances);
+            double cs = CosineSimilarity(n_pPreselectionCloud->points[i],n_pPreselectionCloud,indices);
+            if (cs > CosSim)
+            {
+                CosSim = cs;
+                n_GoalNode.x = n_pPreselectionCloud->points[i].x;
+                n_GoalNode.y = n_pPreselectionCloud->points[i].y;
+                n_GoalNode.z = n_pPreselectionCloud->points[i].z+0.583;
+            }
+        }
+        n_pPlanNodeCloud->push_back(n_GoalNode);
 }
 
 void MeshMap::MeshBoundary(pcl::PointCloud<pcl::PointXYZ>::Ptr verMeshCloud,pcl::PointCloud<pcl::PointXYZ>::Ptr BoundaryCloud){
@@ -427,43 +438,132 @@ void MeshMap::MeshBoundary(pcl::PointCloud<pcl::PointXYZ>::Ptr verMeshCloud,pcl:
 
 }
 
-void MeshMap::PublishPointCloud(const pcl::PointCloud<pcl::PointXYZ> & vCloud){
-  
-	//publish obstacle points
-	sensor_msgs::PointCloud2 vCloudData;
+void MeshMap::MeshBoundary(pcl::PointCloud<pcl::PointNormal>::Ptr verMeshCloud,pcl::PointCloud<pcl::PointNormal>::Ptr BoundaryCloud){
+    std::vector<double> ver(2,0);
+    std::vector<std::vector<double>> Boundary;
+    double max_theta = 0.0,min_theta = 0.0;
 
-	pcl::toROSMsg(vCloud, vCloudData);
+    for (int i = 0; i <verMeshCloud->points.size(); i++)
+	{
+        ver[0] = sqrt(pow(verMeshCloud->points[i].x,2)+pow(verMeshCloud->points[i].y,2));
+        ver[1] = atan(verMeshCloud->points[i].y/verMeshCloud->points[i].x) * 180 / 3.14;
+        Boundary.push_back(ver);
+		if (ver[1]<min_theta) min_theta = ver[1];
+        if (ver[1]>max_theta) max_theta = ver[1];
+	}
 
-	vCloudData.header.frame_id = m_sOutCloudTFId;
-
-	vCloudData.header.stamp = ros::Time::now();
-
-	m_oTestCloudPublisher.publish(vCloudData);
+    for(double i =min_theta;i<max_theta ;i+=0.5)
+    {
+        double r=0.0;
+        int index = 0;
+        for(int j =0;j<Boundary.size();j++)
+        {
+            if (Boundary[j][1]>i && Boundary[j][1]< i+0.5)
+            {
+                if(Boundary[j][0] > r)
+                {
+                    r = Boundary[j][0];
+                    index = j;
+                }
+            }
+        }
+        BoundaryCloud->push_back(verMeshCloud->points[index]);
+	}
 
 }
 
-void MeshMap::PublishPointCloud(const pcl::PointCloud<pcl::PointNormal> & vCloud){
-  
-	//publish obstacle points
-	sensor_msgs::PointCloud2 vCloudData;
+void MeshMap::PublishFullOctoMap(octomap::ColorOcTree & m_octree)
+{
+  octomap_msgs::Octomap map;
+  map.header.frame_id = pub_MapFrame;
+  map.header.stamp = ros::Time::now();
 
-	pcl::toROSMsg(vCloud, vCloudData);
-
-	vCloudData.header.frame_id = m_sOutCloudTFId;
-
-	vCloudData.header.stamp = ros::Time::now();
-
-	m_oTestCloudPublisher.publish(vCloudData);
+  if (octomap_msgs::fullMapToMsg(m_octree, map))
+    m_fullMapPub.publish(map);
+  else
+    ROS_ERROR("Error serializing OctoMap");
 
 }
 
-void MeshMap::PublishMeshs(const pcl::PointCloud<pcl::PointXYZ> &vMeshVertices){
-  	
+void MeshMap::PublishGoalOdom(pcl::PointXYZ & oGoalPoint){
+
+        nav_msgs::Odometry oCurrGoalOdom;
+        oCurrGoalOdom.header.stamp = ros::Time::now();
+        oCurrGoalOdom.header.frame_id = pub_GoalOdomFrame;
+
+        //set the position
+        oCurrGoalOdom.pose.pose.position.x = oGoalPoint.x;
+        oCurrGoalOdom.pose.pose.position.y = oGoalPoint.y;
+        oCurrGoalOdom.pose.pose.position.z = oGoalPoint.z;
+        // oCurrGoalOdom.pose.pose.position.z = oGoalPoint.z + 0.583;
+
+        n_GoalNodePub.publish(oCurrGoalOdom);
+}
+
+void MeshMap::PublishPreseNodeClouds(){
+    sensor_msgs::PointCloud2 CloudData;
+    pcl::toROSMsg(*n_pPreselectionCloud, CloudData);
+    // vCloudData.header.frame_id = m_oGMer.m_oFeatureMap.getFrameId();
+    CloudData.header.frame_id = pub_CloudFrame;
+    CloudData.header.stamp = ros::Time::now();
+
+    n_PreseNodePub.publish(CloudData);
+}
+
+void MeshMap::PublishPlanNodeClouds(){
+    sensor_msgs::PointCloud2 CloudData;
+    pcl::toROSMsg(*n_pPlanNodeCloud, CloudData);
+    // vCloudData.header.frame_id = m_oGMer.m_oFeatureMap.getFrameId();
+    CloudData.header.frame_id = pub_CloudFrame;
+    CloudData.header.stamp = ros::Time::now();
+
+    n_PlanNodePub.publish(CloudData);
+}
+
+void MeshMap::PublishPastNodeClouds(){
+    sensor_msgs::PointCloud2 CloudData;
+    pcl::toROSMsg(*n_pPastNodeCloud, CloudData);
+    // vCloudData.header.frame_id = m_oGMer.m_oFeatureMap.getFrameId();
+    CloudData.header.frame_id = pub_CloudFrame;
+    CloudData.header.stamp = ros::Time::now();
+    n_PastNodePub.publish(CloudData);
+}
+
+void MeshMap::PublishPointCloud(ros::Publisher Pub,const pcl::PointCloud<pcl::PointXYZ> & Cloud){
+  
+	//publish obstacle points
+	sensor_msgs::PointCloud2 CloudData;
+
+	pcl::toROSMsg(Cloud, CloudData);
+
+	CloudData.header.frame_id = pub_CloudFrame;
+
+	CloudData.header.stamp = ros::Time::now();
+
+	Pub.publish(CloudData);
+}
+
+void MeshMap::PublishPointCloud(ros::Publisher Pub,const pcl::PointCloud<pcl::PointNormal> & Cloud){
+  
+	//publish obstacle points
+	sensor_msgs::PointCloud2 CloudData;
+
+	pcl::toROSMsg(Cloud, CloudData);
+
+	CloudData.header.frame_id = pub_CloudFrame;
+
+	CloudData.header.stamp = ros::Time::now();
+
+	Pub.publish(CloudData);
+}
+
+void MeshMap::PublishMesh(const pcl::PointCloud<pcl::PointXYZ> &vMeshVertices){
+  /*	
   	//new a visual message
 	visualization_msgs::Marker oMeshMsgs;
 	
 	//define header of message
-	oMeshMsgs.header.frame_id = m_sOutCloudTFId;
+	oMeshMsgs.header.frame_id = baselinkFrame;
 	oMeshMsgs.header.stamp = ros::Time::now();
 	oMeshMsgs.type = visualization_msgs::Marker::TRIANGLE_LIST;
 	oMeshMsgs.action = visualization_msgs::Marker::ADD;
@@ -503,9 +603,7 @@ void MeshMap::PublishMeshs(const pcl::PointCloud<pcl::PointXYZ> &vMeshVertices){
 	}//end k
 
 	m_oMeshPublisher.publish(oMeshMsgs);
-
+*/
 }
-
-
 
 }

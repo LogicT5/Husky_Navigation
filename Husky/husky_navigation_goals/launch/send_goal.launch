@@ -2,8 +2,8 @@
   
   <!-- <arg name="robotodomtopic" default="/odometry/filtered"/> -->
   <arg name="robotodomtopic" default="/lio_sam/mapping/odometry"/>
-  <arg name="goalodomtopic" default="/topology_map/goal_odom" />
-  <!-- <arg name="goalodomtopic" default="/PublishNodes/goal_odom" /> -->
+  <!-- <arg name="goalodomtopic" default="/topology_map/goal_odom" /> -->
+  <arg name="goalodomtopic" default="/PublishNodes/goal_odom" />
   <!-- <arg name="goalodomtopic" default="/husky_mesh_map/goal_odom" /> -->
   
 

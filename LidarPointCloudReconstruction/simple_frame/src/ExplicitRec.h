@@ -9,7 +9,7 @@ class ExplicitRecParam{
 
 public:
 	// 伪面剔除阈值m_fPseudoFaceThr 
-	ExplicitRecParam() :m_GHPRParam(3.6), m_fPseudoFaceThr(0.02), m_iSectorMinPNum(5){
+	ExplicitRecParam() :m_GHPRParam(3.6), m_fPseudoFaceThr(0.05), m_iSectorMinPNum(5){
 
 
 	};

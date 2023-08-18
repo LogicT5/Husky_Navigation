@@ -2,15 +2,15 @@
   
   <arg name="meshIntopic" default="/frame_meshs"/>
   <arg name="meshtestclouds" default="/test_clouds"/>
-  <arg name="lidarFrame" default="/lidar_sensor_VLP16"/>
-  <arg name="baselinkFrame" default="/base_link"/>
+  <arg name="lidarFrame" default="lidar_sensor_VLP16"/>
+  <arg name="baselinkFrame" default="base_link"/>
   
 
   <!-- Launch the husky goal package -->
   <node pkg="mesh_map" type="mesh_map" name="husky_mesh_map" output="screen" >
     <param name="mesh_in_topic" type="string" value="$(arg meshIntopic)" />
     <param name="map_test_clouds" type="string" value="$(arg meshtestclouds)" />     
-    <param name="lidarFrame" type="string" value="$(arg baselinkFrame)" />
+    <param name="lidarFrame" type="string" value="$(arg lidarFrame)" />
     <param name="baselinkFrame" type="string" value="$(arg baselinkFrame)" />   
   </node>
 
