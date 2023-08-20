@@ -1164,13 +1164,10 @@ Visualization Manager:
           Value: false
           Visibility:
             FrameRegconstruction:
-              Debug:
+              "":
+                "": true
                 Value: true
-                debugNPointCloud: true
-              Frame_normals: true
-              Frame_reconstruction: true
               Value: true
-              sub_odometry: true
             Frame_Fusion: true
             Grid: true
             LIO-SAM:
@@ -1505,16 +1502,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 35.0222053527832
+      Distance: 18.48233413696289
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.9537380933761597
-        Y: -2.1574838161468506
-        Z: 0.20250262320041656
+        X: -0.12038979679346085
+        Y: -0.11786306649446487
+        Z: -1.2212225198745728
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

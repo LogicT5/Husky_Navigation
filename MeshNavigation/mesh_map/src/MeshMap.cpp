@@ -307,7 +307,7 @@ void MeshMap::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsgs)
                 m_pMeshMapTree->updateNode(octomap::point3d(point.x, point.y, point.z), true);
                 m_pMeshMapTree->integrateNodeColor(point.x,point.y,point.z,240,255,255);
                 // 更新octomap
-                m_pMeshMapTree->updateInnerOccupancy();
+                // m_pMeshMapTree->updateInnerOccupancy();
             }  
             else
             {
