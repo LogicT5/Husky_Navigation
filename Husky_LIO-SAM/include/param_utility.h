@@ -1,6 +1,8 @@
 #pragma once
+
 #ifndef _UTILITY_LIDAR_ODOMETRY_H_
 #define _UTILITY_LIDAR_ODOMETRY_H_
+
 #define PCL_NO_PRECOMPILE
 
 #include <ros/ros.h>
@@ -56,7 +58,35 @@
 
 using namespace std;
 
-typedef pcl::PointXYZI PointType;
+namespace pcl {
+    struct PointNormalICRTL {
+        PCL_ADD_POINT4D;               // xyz + intensity
+        PCL_ADD_INTENSITY;
+        PCL_ADD_NORMAL4D; // normal + curvature
+        // PCL_ADD_CURVATURE;
+        uint16_t ring;
+        float time;
+        uint32_t label;                        // label
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    };
+}
+POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointNormalICRTL,
+                                  (float, x, x)
+                                  (float, y, y)
+                                  (float, z, z)
+                                  (float, intensity, intensity)
+                                  (float, normal_x, normal_x)
+                                  (float, normal_y, normal_y)
+                                  (float, normal_z, normal_z)
+                                //   (float, curvature, curvature)
+                                  (uint16_t, ring, ring)
+                                  (float, time ,time)
+                                  (uint32_t, label, label))
+
+
+// typedef pcl::PointXYZI PointType;
+typedef pcl::PointNormalICRTL PointType;
+
 
 // enum class SensorType { VELODYNE, OUSTER, LIVOX };
 enum class SensorType
@@ -73,6 +103,9 @@ class ParamServer
 {
 public: 
     bool debug;
+    //debug PointCloud
+    ros::Publisher debugPointCloudPub;
+
     ros::NodeHandle nh;
 
     std::string robot_id;
@@ -317,62 +350,5 @@ public:
         return imu_out;
     }
 };
-
-template <typename T>
-sensor_msgs::PointCloud2 publishCloud(const ros::Publisher &thisPub, const T &thisCloud, ros::Time thisStamp, std::string thisFrame)
-{
-    sensor_msgs::PointCloud2 tempCloud;
-    pcl::toROSMsg(*thisCloud, tempCloud);
-    tempCloud.header.stamp = thisStamp;
-    tempCloud.header.frame_id = thisFrame;
-    if (thisPub.getNumSubscribers() != 0)
-        thisPub.publish(tempCloud);
-    return tempCloud;
-}
-
-template <typename T>
-double ROS_TIME(T msg)
-{
-    return msg->header.stamp.toSec();
-}
-
-template <typename T>
-void imuAngular2rosAngular(sensor_msgs::Imu *thisImuMsg, T *angular_x, T *angular_y, T *angular_z)
-{
-    *angular_x = thisImuMsg->angular_velocity.x;
-    *angular_y = thisImuMsg->angular_velocity.y;
-    *angular_z = thisImuMsg->angular_velocity.z;
-}
-
-template <typename T>
-void imuAccel2rosAccel(sensor_msgs::Imu *thisImuMsg, T *acc_x, T *acc_y, T *acc_z)
-{
-    *acc_x = thisImuMsg->linear_acceleration.x;
-    *acc_y = thisImuMsg->linear_acceleration.y;
-    *acc_z = thisImuMsg->linear_acceleration.z;
-}
-
-template <typename T>
-void imuRPY2rosRPY(sensor_msgs::Imu *thisImuMsg, T *rosRoll, T *rosPitch, T *rosYaw)
-{
-    double imuRoll, imuPitch, imuYaw;
-    tf::Quaternion orientation;
-    tf::quaternionMsgToTF(thisImuMsg->orientation, orientation);
-    tf::Matrix3x3(orientation).getRPY(imuRoll, imuPitch, imuYaw);
-
-    *rosRoll = imuRoll;
-    *rosPitch = imuPitch;
-    *rosYaw = imuYaw;
-}
-
-float pointDistance(PointType p)
-{
-    return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-}
-
-float pointDistance(PointType p1, PointType p2)
-{
-    return sqrt((p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y) + (p1.z - p2.z) * (p1.z - p2.z));
-}
 
 #endif

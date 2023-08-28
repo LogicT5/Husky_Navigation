@@ -3,7 +3,7 @@
 <arg name="slamType" default="true"/>
 <!-- true是LIO-SAM    false是ALOAM -->
 
-<arg name="rosbag" default="$(find debug_tools)/rosbag/L7_IMU.bag" />
+<arg name="rosbag" default="/home/vcc/RosBag/L7_IMU.bag" />
 <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/upper_platform.bag" /> -->
 <!-- <arg name="rosbag" default="/home/vcc/Square.bag" /> -->
 

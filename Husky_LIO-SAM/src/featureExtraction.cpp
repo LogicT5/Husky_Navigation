@@ -25,7 +25,8 @@
 4. 特征提取。分别做角点（曲率大）和平面点（曲率小）特征点提取
 5. 整合信息，发布完整数据包
 *******************************************************************************/
-#include "utility.h"
+#include "param_utility.h"
+#include "function_utility.h"
 #include "lio_sam/cloud_info.h"
 
 /**
@@ -352,8 +353,11 @@ public:
         // save newly extracted features
         cloudInfo.cloud_corner  = publishCloud(pubCornerPoints,  cornerCloud,  cloudHeader.stamp, lidarFrame);
         cloudInfo.cloud_surface = publishCloud(pubSurfacePoints, surfaceCloud, cloudHeader.stamp, lidarFrame);
+
         // publish to mapOptimization
         pubLaserCloudInfo.publish(cloudInfo);
+
+
     }
 };
 

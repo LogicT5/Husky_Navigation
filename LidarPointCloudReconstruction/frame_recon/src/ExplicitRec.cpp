@@ -148,10 +148,18 @@ void ExplicitRec::RemovePseudoFaces(const pcl::PointCloud<pcl::PointXYZI> & vCen
 
 
 	}//end for i
-
-
 }
 
+
+/*=======================================
+RemovePseudoFacesAndComputeCenterPoint
+Input:vCenterPoints - centerpoints of faces
+             vFaces - faces (vertex relationships)
+         oMatNormal - face normals
+Output: vTrueFaceStatus - face status indicating which face is a pseudo face
+            vFaceWeight - face weight indicating How much each face resembles a pseudoface
+Function: remove pseudo faces
+========================================*/
 void ExplicitRec::RemovePseudoFacesAndComputeCenterPoint(const pcl::PointCloud<pcl::PointXYZI> & vSectorPoints, pcl::PointCloud<pcl::PointXYZI> & vCenterPoints, const std::vector<pcl::Vertices> & vFaces, const Eigen::MatrixXf & oMatNormal,
 	std::vector<bool> & vTrueFaceStatus, std::vector<float> & vFaceWeight){
 
@@ -235,6 +243,7 @@ void ExplicitRec::RemovePseudoFacesAndComputeCenterPoint(const pcl::PointCloud<p
 
 	}//end for i
 }
+
 
 /*=======================================
 FrameReconstruction
@@ -348,7 +357,7 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 				pcl::PointCloud<pcl::PointXYZI>::Ptr pCenterPoints(new pcl::PointCloud<pcl::PointXYZI>);
 				//compute the centerpoint of each faces
 				//The centerpoint re-represents its face
-				oMeshOper.ComputeCenterPoint(*pSectorCloud, vOneFaces, *pCenterPoints);
+				// oMeshOper.ComputeCenterPoint(*pSectorCloud, vOneFaces, *pCenterPoints);
 
 				//face normals
 				Eigen::MatrixXf& oMatNormal = m_vMatNormal[i];
@@ -377,8 +386,8 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 				std::vector<float>& vFaceWeight = m_vFaceWeight[i];
 				vFaceWeight.resize(vOneFaces.size(), 0.0f);
 				//Remove pseudo triangles according to scanning rules of LiDAR
-				RemovePseudoFaces(*pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
-				// RemovePseudoFacesAndComputeCenterPoint(*pSectorCloud, *pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
+				// RemovePseudoFaces(*pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
+				RemovePseudoFacesAndComputeCenterPoint(*pSectorCloud, *pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
 
 				//propagate the normal vector to each vertex
 				//linearly compute weighted neighboring normal vector

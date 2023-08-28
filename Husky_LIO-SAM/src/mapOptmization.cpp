@@ -23,7 +23,8 @@
     11、发布历史帧（累加的）的角点、平面点降采样集合；
     12、发布当前帧原始点云配准之后的点云。
 **************************************************/ 
-#include "utility.h"
+#include "param_utility.h"
+#include "function_utility.h"
 #include "lio_sam/cloud_info.h"
 #include "lio_sam/save_map.h"
 
@@ -410,6 +411,7 @@ public:
         #pragma omp parallel for num_threads(numberOfCores)
         for (int i = 0; i < cloudSize; ++i)
         {
+            cloudOut->points[i] = cloudIn->points[i];
             const auto &pointFrom = cloudIn->points[i];
             cloudOut->points[i].x = transCur(0,0) * pointFrom.x + transCur(0,1) * pointFrom.y + transCur(0,2) * pointFrom.z + transCur(0,3);
             cloudOut->points[i].y = transCur(1,0) * pointFrom.x + transCur(1,1) * pointFrom.y + transCur(1,2) * pointFrom.z + transCur(1,3);
@@ -1343,6 +1345,7 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
         downSizeFilterSurf.setInputCloud(laserCloudSurfLast);
         downSizeFilterSurf.filter(*laserCloudSurfLastDS);
         laserCloudSurfLastDSNum = laserCloudSurfLastDS->size();
+
     }
 
    /**
@@ -2247,6 +2250,13 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
             PointTypePose thisPose6D = trans2PointTypePose(transformTobeMapped);
             *cloudOut = *transformPointCloud(cloudOut,  &thisPose6D);
             publishCloud(pubCloudRegisteredRaw, cloudOut, timeLaserInfoStamp, odometryFrame);
+
+            debugPointCloudPub = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/debug/debugPointCloud",1);
+            sensor_msgs::PointCloud2 debugPointCloud;
+            pcl::toROSMsg(*cloudOut,  debugPointCloud);
+            debugPointCloud.header.frame_id = "odom"; 
+            debugPointCloud.header.stamp = ros::Time::now();
+            debugPointCloudPub.publish(debugPointCloud);
         }
         // publish path
         if (pubPath.getNumSubscribers() != 0)

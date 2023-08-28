@@ -1,6 +1,6 @@
 <launch>
     <!-- bag path -->
-    <arg name="rosbag" default="$(find debug_tools)/rosbag/L7_IMU.bag" />
+    <arg name="rosbag" default="/home/vcc/RosBag/L7_IMU.bag" />
     <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/climb_onto_platform.bag" /> -->
     <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/underground_garage_exit.bag" /> -->
     <!-- <arg name="rosbag" default="$(find debug_tools)/rosbag/through_art_building.bag" /> -->

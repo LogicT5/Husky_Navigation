@@ -24,8 +24,8 @@ IMUPreintegration类
 发布：
     1、发布imu里程计；
 **************************************************/ 
-#include "utility.h"
-
+#include "param_utility.h"
+#include "function_utility.h"
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/slam/PriorFactor.h>

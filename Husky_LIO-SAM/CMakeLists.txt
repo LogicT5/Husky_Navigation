@@ -39,6 +39,9 @@ find_package(GTSAM REQUIRED QUIET)
 find_package(PkgConfig REQUIRED)
 find_package(PCL)
 find_package(Boost REQUIRED COMPONENTS timer)
+find_package(CGAL QUIET COMPONENTS)
+include( ${CGAL_USE_FILE} )
+
 add_message_files(
   DIRECTORY msg
   FILES
@@ -76,9 +79,11 @@ catkin_package(
 # include directories
 include_directories(
 	include
+  src/frame_recon/include
 	${catkin_INCLUDE_DIRS}
 	${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  # ${CGAL_USE_FILE} 
 	${GTSAM_INCLUDE_DIR}
 )
 
@@ -95,6 +100,9 @@ link_directories(
 ###########
 
 add_definitions(${PCL_DEFINITIONS})
+
+aux_source_directory(src/frame_recon/src FrameRecon_DIR_SRCS)
+add_library(FrameRecon STATIC ${FrameRecon_DIR_SRCS})
 
 add_executable(${PROJECT_NAME}_pmerger src/pmerger.cpp)
 add_dependencies(${PROJECT_NAME}_pmerger ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
@@ -124,11 +132,16 @@ target_link_libraries(${PROJECT_NAME}_pmerger ${catkin_LIBRARIES} ${PCL_LIBRARIE
 # add_executable(${PROJECT_NAME}_imuPreintegration src/imuPreintegration.cpp)
 # target_link_libraries(${PROJECT_NAME}_imuPreintegration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
 
+#FrameRecon 
+# add_executable(${PROJECT_NAME}_FrameRecon src/FrameRecon/src)
+# add_dependencies(${PROJECT_NAME}_FrameRecon ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
+# target_link_libraries(${PROJECT_NAME}_FrameRecon ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
 
 # Range Image Projection FULL
 add_executable(${PROJECT_NAME}_imageProjection src/imageProjection.cpp)
-add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp )
+# add_to_cached_list( CGAL_EXECUTABLE_TARGETS ${PROJECT_NAME}_imageProjection)
+target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} FrameRecon -lpthread -lm)
 
 # Feature Association
 add_executable(${PROJECT_NAME}_featureExtraction src/featureExtraction.cpp)

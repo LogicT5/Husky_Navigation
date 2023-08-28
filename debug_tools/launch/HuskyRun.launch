@@ -2,7 +2,7 @@
     
   <arg name="WorldName" default="clearpath_playpen" doc="Gazebo World Name"/>
 
-  <arg name="Navigation" default="true" doc="Navigation method"/>
+  <arg name="Navigation" default="false" doc="Navigation method  true -- meshMap   false -- topyMap"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find husky_gazebo)/worlds/$(arg WorldName).world"/>
@@ -49,6 +49,7 @@
     <arg name="odomintopic" default="/husky_lio_sam/mapping/odometry" />
     <arg name="lidar_line_min" default="0"/>
     <arg name="lidar_line_max" default="15"/>
+    <!-- <arg name="sf_output_path" default="/home/vcc/Dense_ROS/$(arg WorldName)/sf_output/"/> -->
   </include>
 
   <!-- launch frame fusion-->
@@ -66,9 +67,9 @@
 <group if="$(arg Navigation)">
       <include file="$(find mesh_map)/launch/mesh_map.launch"/>
 
-        <include file="$(find husky_navigation_goals)/launch/send_goal.launch">
+        <!-- <include file="$(find husky_navigation_goals)/launch/send_goal.launch">
             <arg name="goalodomtopic" default="/husky_mesh_map/goal_odom" />
-        </include>
+        </include> -->
 </group>
 <group unless="$(arg Navigation)">
     <!-- A node which estimates the ground, obstacle and boundary points using gp-insac algorithm-->

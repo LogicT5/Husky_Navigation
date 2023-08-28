@@ -302,6 +302,7 @@ void MeshMap::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsgs)
         {   
             if(abs(Vector_z.dot(PointNormal) - Vector_z.norm() * PointNormal.norm()) < 0.01)
             {
+                point.z = 0.0;
                 m_pGroundPN->push_back(point);
 
                 m_pMeshMapTree->updateNode(octomap::point3d(point.x, point.y, point.z), true);

@@ -453,9 +453,35 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 			return;
 		}
 
-		// std::cout << "vLaserData.fields.size()" << vLaserData.fields.size();
+		// std::cout << "vLaserData.fields.size()  " << vLaserData.fields.size();
 
-		if(vLaserData.fields.size() == 4)  //velodyne  sensor_msgs::PointCloud2 {point x y z}
+
+		if(vLaserData.fields.size() == 6) //velodyne  sensor_msgs::PointCloud2 {point x y z intensity ring time}
+		{
+			int ring;
+			for(int i = 0;i < pRawCloud->points.size();++i)
+			{
+				ring = 0;
+				// std::memcpy(&ring,&vLaserData.data[32*i+20],2);
+				std::memcpy(&ring,&vLaserData.data[22*i+16],2);
+				// std::cout<<ring<<std::endl;
+				pRawCloud->points[i].intensity = ring;
+			}
+		}
+		else if(vLaserData.fields.size() == 10) //velodyne  sensor_msgs::PointCloud2 {point x y z intensity normal_x normal_y normal_z ring time label}
+		{
+			int ring;
+			for(int i = 0;i < pRawCloud->points.size();++i)
+			{
+				ring = 0;
+				// std::memcpy(&ring,&vLaserData.data[32*i+20],2);
+				// &vLaserData.data[point_step*i+offset]
+				std::memcpy(&ring,&vLaserData.data[64*i+48],2);
+				// std::cout<<ring<<std::endl;
+				pRawCloud->points[i].intensity = ring;
+			}
+		}
+		else
 		{
 			int N_SCANS = m_iLidarLineMax - m_iLidarLineMin + 1;
 			#ifdef DEBUG
@@ -535,18 +561,6 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 				pRawCloud->points[i].intensity = scanID;
 				// std::cout << "\tscanID: " << scanID ;
 
-			}
-		}
-		else if(vLaserData.fields.size() == 6) //velodyne  sensor_msgs::PointCloud2 {point x y z intensity ring time}
-		{
-			int ring;
-			for(int i = 0;i < pRawCloud->points.size();++i)
-			{
-				ring = 0;
-				// std::memcpy(&ring,&vLaserData.data[32*i+20],2);
-				std::memcpy(&ring,&vLaserData.data[22*i+16],2);
-				// std::cout<<ring<<std::endl;
-				pRawCloud->points[i].intensity = ring;
 			}
 		}
 

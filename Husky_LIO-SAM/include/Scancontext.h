@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _SCANCONTEXT_H_
+#define _SCANCONTEXT_H_
 
 #include <ctime>
 #include <cassert>
@@ -27,6 +28,8 @@
 
 #include "tictoc.h"
 
+#include "param_utility.h"
+
 using namespace Eigen;
 using namespace nanoflann;
 
@@ -38,11 +41,38 @@ using std::atan2;
 using std::cos;
 using std::sin;
 
-using SCPointType = pcl::PointXYZI; // using xyz only. but a user can exchange the original bin encoding function (i.e., max hegiht) to max intensity (for detail, refer 20 ICRA Intensity Scan Context)
+// namespace pcl {
+//     struct PointNormalICRTL {
+//         PCL_ADD_POINT4D;               // xyz + intensity
+//         PCL_ADD_INTENSITY;
+//         PCL_ADD_NORMAL4D; // normal + curvature
+//         // PCL_ADD_CURVATURE;
+//         uint16_t ring;
+//         float time;
+//         uint32_t label;                        // label
+//         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//     };
+// }
+// POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointNormalICRTL,
+//                                   (float, x, x)
+//                                   (float, y, y)
+//                                   (float, z, z)
+//                                   (float, intensity, intensity)
+//                                   (float, normal_x, normal_x)
+//                                   (float, normal_y, normal_y)
+//                                   (float, normal_z, normal_z)
+//                                 //   (float, curvature, curvature)
+//                                   (uint16_t, ring, ring)
+//                                   (float, time ,time)
+//                                   (uint32_t, label, label))
+
+using SCPointType = PointType; 
+// using SCPointType = pcl::PointXYZI; 
+// using SCPointType = pcl::PointXYZINormal; // using xyz only. but a user can exchange the original bin encoding function (i.e., max hegiht) to max intensity (for detail, refer 20 ICRA Intensity Scan Context)
 using KeyMat = std::vector<std::vector<float> >;
 using InvKeyTree = KDTreeVectorOfVectorsAdaptor< KeyMat, float >;
 
-//实现make_unique c++14才支持
+//自实现make_unique c++14之后才支持
 template <typename T, typename... Args>
 std::unique_ptr<T> make_unique(Args&&... args) {
 return std::unique_ptr<T>(new T(std::forward<Args>(args)...));}
@@ -117,3 +147,5 @@ public:
 }; // SCManager
 
 // } // namespace SC2
+
+#endif
