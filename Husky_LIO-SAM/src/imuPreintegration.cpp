@@ -118,14 +118,14 @@ public:
         }
 
         // 订阅lidar odom，来自mapOptimization
-        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("husky_lio_sam/mapping/odometry", 5, &TransformFusion::lidarOdometryHandler, this, ros::TransportHints().tcpNoDelay());
+        subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("husky_husky_lio_sam/mapping/odometry", 5, &TransformFusion::lidarOdometryHandler, this, ros::TransportHints().tcpNoDelay());
         // 订阅imu odom，来自IMUPreintegration
         subImuOdometry   = nh.subscribe<nav_msgs::Odometry>(odomTopic+"_incremental",   2000, &TransformFusion::imuOdometryHandler,   this, ros::TransportHints().tcpNoDelay());
 
         // 发布imu里程计，用于rviz展示
         pubImuOdometry   = nh.advertise<nav_msgs::Odometry>(odomTopic, 2000);
         // 发布imu里程计轨迹
-        pubImuPath       = nh.advertise<nav_msgs::Path>    ("husky_lio_sam/imu/path", 1);
+        pubImuPath       = nh.advertise<nav_msgs::Path>    ("husky_husky_lio_sam/imu/path", 1);
     }
 
     /**
@@ -322,7 +322,7 @@ public:
     IMUPreintegration()
     {
         subImu      = nh.subscribe<sensor_msgs::Imu>  (imuTopic,                   2000, &IMUPreintegration::imuHandler,      this, ros::TransportHints().tcpNoDelay());
-        subOdometry = nh.subscribe<nav_msgs::Odometry>("husky_lio_sam/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
+        subOdometry = nh.subscribe<nav_msgs::Odometry>("husky_husky_lio_sam/mapping/odometry_incremental", 5,    &IMUPreintegration::odometryHandler, this, ros::TransportHints().tcpNoDelay());
 
         pubImuOdometry = nh.advertise<nav_msgs::Odometry> (odomTopic+"_incremental", 2000);
 

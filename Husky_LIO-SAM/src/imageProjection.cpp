@@ -35,7 +35,7 @@
 *******************************************************************************/
 #include "param_utility.h"
 #include "function_utility.h"
-#include "lio_sam/cloud_info.h"
+#include "husky_lio_sam/cloud_info.h"
 //frame recon
 #include "GHPR.h"
 #include "SectorPartition.h"
@@ -173,7 +173,7 @@ private:
     float odomIncreY;
     float odomIncreZ;
 
-    lio_sam::cloud_info cloudInfo; // 点云信息：雷达线数
+    husky_lio_sam::cloud_info cloudInfo; // 点云信息：雷达线数
     double timeScanCur;            // 当前雷达帧的起始时间
     double timeScanEnd;            // 当前雷达帧的结束时间
     std_msgs::Header cloudHeader;  // 当前雷达帧的Header
@@ -190,8 +190,8 @@ public:
         subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(pointCloudTopic, 5, &ImageProjection::cloudHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 发布Topic
-        pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/deskew/cloud_deskewed", 1);
-        pubLaserCloudInfo = nh.advertise<lio_sam::cloud_info>("husky_lio_sam/deskew/cloud_info", 1);
+        pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/deskew/cloud_deskewed", 1);
+        pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info>("husky_husky_lio_sam/deskew/cloud_info", 1);
 
         // 初始化
         allocateMemory();
@@ -1076,7 +1076,7 @@ public:
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "H_lio_sam");
+    ros::init(argc, argv, "H_husky_lio_sam");
 
     ImageProjection IP;
 

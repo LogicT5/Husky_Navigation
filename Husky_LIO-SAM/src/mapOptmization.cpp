@@ -25,8 +25,8 @@
 **************************************************/ 
 #include "param_utility.h"
 #include "function_utility.h"
-#include "lio_sam/cloud_info.h"
-#include "lio_sam/save_map.h"
+#include "husky_lio_sam/cloud_info.h"
+#include "husky_lio_sam/save_map.h"
 
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Pose3.h>
@@ -116,7 +116,7 @@ public:
     ros::ServiceServer srvSaveMap;
 
     std::deque<nav_msgs::Odometry> gpsQueue;
-    lio_sam::cloud_info cloudInfo;
+    husky_lio_sam::cloud_info cloudInfo;
 
     vector<pcl::PointCloud<PointType>::Ptr> cornerCloudKeyFrames;
     vector<pcl::PointCloud<PointType>::Ptr> surfCloudKeyFrames;
@@ -201,44 +201,44 @@ public:
         isam = new ISAM2(parameters);
 
         // 发布历史关键帧里程计
-        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/trajectory", 1);
+        pubKeyPoses                 = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/trajectory", 1);
         // 发布局部关键帧map的特征点云
-        pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/map_global", 1);
+        pubLaserCloudSurround       = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/map_global", 1);
         // 发布激光里程计，rviz中表现为坐标轴
-        pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> ("husky_lio_sam/mapping/odometry", 1);
+        pubLaserOdometryGlobal      = nh.advertise<nav_msgs::Odometry> ("husky_husky_lio_sam/mapping/odometry", 1);
         // 发布激光里程计，它与上面的激光里程计基本一样，只是roll、pitch用imu数据加权平均了一下，z做了限制
-        pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> ("husky_lio_sam/mapping/odometry_incremental", 1);
+        pubLaserOdometryIncremental = nh.advertise<nav_msgs::Odometry> ("husky_husky_lio_sam/mapping/odometry_incremental", 1);
         // 发布激光里程计路径，rviz中表现为载体的运行轨迹
-        pubPath                     = nh.advertise<nav_msgs::Path>("husky_lio_sam/mapping/path", 1);
+        pubPath                     = nh.advertise<nav_msgs::Path>("husky_husky_lio_sam/mapping/path", 1);
 
         // 订阅当前激光帧点云信息，来自featureExtraction
         if(featureExtracted)
-            subCloud = nh.subscribe<lio_sam::cloud_info>("husky_lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+            subCloud = nh.subscribe<husky_lio_sam::cloud_info>("husky_husky_lio_sam/feature/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
         else
-            subCloud = nh.subscribe<lio_sam::cloud_info>("husky_lio_sam/deskew/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+            subCloud = nh.subscribe<husky_lio_sam::cloud_info>("husky_husky_lio_sam/deskew/cloud_info", 1, &mapOptimization::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
          // 订阅GPS里程计
         subGPS   = nh.subscribe<nav_msgs::Odometry> (gpsTopic, 200, &mapOptimization::gpsHandler, this, ros::TransportHints().tcpNoDelay());
         // 订阅来自外部闭环检测程序提供的闭环数据，本程序没有提供，这里实际没用上
         subLoop  = nh.subscribe<std_msgs::Float64MultiArray>("/lio_loop/loop_closure_detection", 1, &mapOptimization::loopInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 发布地图保存服务
-        srvSaveMap  = nh.advertiseService("husky_lio_sam/save_map", &mapOptimization::saveMapService, this);
+        srvSaveMap  = nh.advertiseService("husky_husky_lio_sam/save_map", &mapOptimization::saveMapService, this);
 
         // 发布闭环匹配关键帧局部map
-        pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/icp_loop_closure_history_cloud", 1);
+        pubHistoryKeyFrames   = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/icp_loop_closure_history_cloud", 1);
         // 发布当前关键帧经过闭环优化后的位姿变换之后的特征点云
-        pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/icp_loop_closure_corrected_cloud", 1);
+        pubIcpKeyFrames       = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/icp_loop_closure_corrected_cloud", 1);
         // 发布闭环边，rviz中表现为闭环帧之间的连线
-        pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>("/husky_lio_sam/mapping/loop_closure_constraints", 1);
+        pubLoopConstraintEdge = nh.advertise<visualization_msgs::MarkerArray>("/husky_husky_lio_sam/mapping/loop_closure_constraints", 1);
  
         // 发布局部map的降采样平面点集合
-        pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/map_local", 1);
+        pubRecentKeyFrames    = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/map_local", 1);
         // 发布历史帧（累加的）的角点、平面点降采样集合
-        pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/cloud_registered", 1);
+        pubRecentKeyFrame     = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/cloud_registered", 1);
         // 发布当前帧原始点云配准之后的点云
-        pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/mapping/cloud_registered_raw", 1);
+        pubCloudRegisteredRaw = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/mapping/cloud_registered_raw", 1);
 
-        pubSLAMInfo           = nh.advertise<lio_sam::cloud_info>("husky_lio_sam/mapping/slam_info", 1);
+        pubSLAMInfo           = nh.advertise<husky_lio_sam::cloud_info>("husky_husky_lio_sam/mapping/slam_info", 1);
 
         
         downSizeFilterSurf.setLeafSize(mappingSurfLeafSize, mappingSurfLeafSize, mappingSurfLeafSize);
@@ -335,7 +335,7 @@ public:
      * 7、发布激光里程计
      * 8、发布里程计、点云、轨迹
     */
-    void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const husky_lio_sam::cloud_infoConstPtr& msgIn)
     {
         // 当前激光帧时间戳
         timeLaserInfoStamp = msgIn->header.stamp;
@@ -486,7 +486,7 @@ public:
     /**
      * 保存全局关键帧特征点集合
     */
-    bool saveMapService(lio_sam::save_mapRequest& req, lio_sam::save_mapResponse& res)
+    bool saveMapService(husky_lio_sam::save_mapRequest& req, husky_lio_sam::save_mapResponse& res)
     {
       string saveMapDirectory;
 
@@ -575,8 +575,8 @@ public:
         if (savePCD == false)
             return;
 
-        lio_sam::save_mapRequest  req;
-        lio_sam::save_mapResponse res;
+        husky_lio_sam::save_mapRequest  req;
+        husky_lio_sam::save_mapResponse res;
 
         if(!saveMapService(req, res)){
             cout << "Fail to save map" << endl;
@@ -2251,7 +2251,7 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
             *cloudOut = *transformPointCloud(cloudOut,  &thisPose6D);
             publishCloud(pubCloudRegisteredRaw, cloudOut, timeLaserInfoStamp, odometryFrame);
 
-            debugPointCloudPub = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/debug/debugPointCloud",1);
+            debugPointCloudPub = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/debug/debugPointCloud",1);
             sensor_msgs::PointCloud2 debugPointCloud;
             pcl::toROSMsg(*cloudOut,  debugPointCloud);
             debugPointCloud.header.frame_id = "odom"; 
@@ -2271,7 +2271,7 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
         {
             if (lastSLAMInfoPubSize != cloudKeyPoses6D->size())
             {
-                lio_sam::cloud_info slamInfo;
+                husky_lio_sam::cloud_info slamInfo;
                 slamInfo.header.stamp = timeLaserInfoStamp;
                 pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
                 if(featureExtracted)
@@ -2294,7 +2294,7 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "H_lio_sam");
+    ros::init(argc, argv, "H_husky_lio_sam");
 
     mapOptimization MO;
 

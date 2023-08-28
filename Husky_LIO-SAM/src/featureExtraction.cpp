@@ -27,7 +27,7 @@
 *******************************************************************************/
 #include "param_utility.h"
 #include "function_utility.h"
-#include "lio_sam/cloud_info.h"
+#include "husky_lio_sam/cloud_info.h"
 
 /**
  * 激光点曲率
@@ -65,7 +65,7 @@ public:
 
     // 当前激光帧点云信息，包括的历史数据有：
     // 运动畸变校正，点云数据，初始位姿，姿态角，有效点云数据，角点点云，平面点点云等
-    lio_sam::cloud_info cloudInfo;
+    husky_lio_sam::cloud_info cloudInfo;
     std_msgs::Header cloudHeader;
 
     std::vector<smoothness_t> cloudSmoothness;// 当前激光帧点云的曲率
@@ -79,14 +79,14 @@ public:
     {
         if(featureExtracted){
             // 订阅当前激光帧运动畸变校正后的点云信息
-            subLaserCloudInfo = nh.subscribe<lio_sam::cloud_info>("husky_lio_sam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+            subLaserCloudInfo = nh.subscribe<husky_lio_sam::cloud_info>("husky_husky_lio_sam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
             // 发布当前激光帧提取特征之后的点云信息
-            pubLaserCloudInfo = nh.advertise<lio_sam::cloud_info> ("husky_lio_sam/feature/cloud_info", 1);
+            pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info> ("husky_husky_lio_sam/feature/cloud_info", 1);
             // 发布当前激光帧的角点点云
-            pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/feature/cloud_corner", 1);
+            pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/feature/cloud_corner", 1);
             // 发布当前激光帧的面点点云
-            pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/feature/cloud_surface", 1);
+            pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/feature/cloud_surface", 1);
 
             initializationValue();
         }
@@ -116,7 +116,7 @@ public:
      * 
      *  
     */
-    void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
+    void laserCloudInfoHandler(const husky_lio_sam::cloud_infoConstPtr& msgIn)
     {
         cloudInfo = *msgIn; // new cloud info
         cloudHeader = msgIn->header; // new cloud header
@@ -364,7 +364,7 @@ public:
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "H_lio_sam");
+    ros::init(argc, argv, "H_husky_lio_sam");
 
     FeatureExtraction FE;
 
