@@ -60,9 +60,9 @@ add_library(Boundary STATIC ${Boundary_DIR_SRCS})
 include_directories( ${OCTOMAP_INCLUDE_DIRS})
 
 ###### build ########
-add_executable(${PROJECT_NAME}_mesh_map src/MeshNavigation.cpp)
-add_dependencies(${PROJECT_NAME}_mesh_map ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}_mesh_map ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OCTOMAP_LIBRARIES} Boundary)
+add_executable(${PROJECT_NAME}_Navigation src/MeshNavigation.cpp)
+add_dependencies(${PROJECT_NAME}_Navigation ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_Navigation ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OCTOMAP_LIBRARIES} Boundary)
 
 # add_executable(${PROJECT_NAME}_PathPlaner_RRT src/PathPlanning/RRT.cpp)
 # add_dependencies(${PROJECT_NAME}_PathPlaner_RRT ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

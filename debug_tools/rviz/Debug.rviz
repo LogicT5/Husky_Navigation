@@ -20,6 +20,7 @@ Panels:
         - /test1/PointCloud23
         - /test1/PointCloud24
         - /MeshNavigation1
+        - /Debug1
       Splitter Ratio: 0.49492400884628296
     Tree Height: 924
   - Class: rviz/Selection
@@ -40,7 +41,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: presenode_clouds
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -1163,36 +1164,38 @@ Visualization Manager:
           Value: false
           Visibility:
             Debug:
-              "": true
+              BoundPC: true
+              GroundPC: true
+              MultiReconPC: true
+              NonGroundPC: true
+              SingReconPC: true
               Value: true
             FrameRegconstruction:
+              Debug:
+                Value: true
+                debugNPointCloud: true
+              Frame_normals: true
+              Frame_reconstruction: true
+              Value: true
+              sub_odometry: true
+            Frame_Fusion: true
+            Grid: true
+            LIO-SAM:
               "":
                 "": true
                 Value: true
               Value: true
-            Frame_Fusion: true
-            Grid: true
-            LIO-SAM:
-              Mapping:
-                KeyFrameTrajectory: true
-                Odometry: true
-                Odometry_Icremental: true
-                Value: true
-                cloud_registered: true
-                cloud_registered_raw: true
-                lidar_Path: true
-                loop_closure_constraints: true
-                map_global: true
-                map_local: true
-              Value: true
-              Velodyne: true
-              gt_Path: true
             MeshMap_Group:
-              "": true
+              Marker: true
+              PointCloud2: true
               Value: true
             MeshNavigation:
-              "": true
+              ColorOccupancyGrid: true
               Value: true
+              pastnode_clouds: true
+              plannode_clouds: true
+              presenode_clouds: true
+              testPointCloud: true
             Navigation:
               Exploration:
                 Exploration Costmap: true
@@ -1213,8 +1216,12 @@ Visualization Manager:
               Value: true
             TF: true
             Topo_confidence_map:
-              "": true
+              GridMap: true
+              Odometry: true
+              Pastnode: true
+              Plannode: true
               Value: true
+              mesh: true
             TwistMarker: true
             Value: false
             test:
@@ -1369,20 +1376,20 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.029999999329447746
           Style: Flat Squares
-          Topic: /husky_mesh_map/debug_clouds
+          Topic: /husky_mesh_navigation/debug_clouds
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
           Value: false
         - Class: octomap_rviz_plugin/ColorOccupancyGrid
-          Enabled: true
+          Enabled: false
           Max. Height Display: 3.4028234663852886e+38
           Max. Octree Depth: 16
           Min. Height Display: -3.4028234663852886e+38
           Name: ColorOccupancyGrid
-          Octomap Topic: /husky_mesh_map/octomap_full
+          Octomap Topic: /husky_mesh_navigation/octomap_full
           Queue Size: 5
-          Value: true
+          Value: false
           Voxel Alpha: 1
           Voxel Coloring: Cell Color
           Voxel Rendering: Occupied Voxels
@@ -1409,7 +1416,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.5
           Style: Flat Squares
-          Topic: /husky_mesh_map/plannode_clouds
+          Topic: /husky_mesh_navigation/plannode_clouds
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1437,7 +1444,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.5
           Style: Flat Squares
-          Topic: /husky_mesh_map/pastnode_clouds
+          Topic: /husky_mesh_navigation/pastnode_clouds
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1465,7 +1472,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.30000001192092896
           Style: Flat Squares
-          Topic: /husky_mesh_map/presenode_clouds
+          Topic: /husky_mesh_navigation/presenode_clouds
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1497,7 +1504,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.019999999552965164
           Style: Flat Squares
-          Topic: /husky_mesh_map/debug_cloud/SingReconPC
+          Topic: /husky_mesh_navigation/debug_cloud/SingReconPC
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1525,7 +1532,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.05000000074505806
           Style: Flat Squares
-          Topic: /husky_mesh_map/debug_cloud/GroundPC
+          Topic: /husky_mesh_navigation/debug_cloud/GroundPC
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1553,7 +1560,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.05000000074505806
           Style: Flat Squares
-          Topic: /husky_mesh_map/debug_cloud/NonGroundPC
+          Topic: /husky_mesh_navigation/debug_cloud/NonGroundPC
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1581,7 +1588,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.05000000074505806
           Style: Flat Squares
-          Topic: /husky_mesh_map/debug_cloud/BoundPC
+          Topic: /husky_mesh_navigation/debug_cloud/BoundPC
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
@@ -1609,7 +1616,7 @@ Visualization Manager:
           Size (Pixels): 3
           Size (m): 0.029999999329447746
           Style: Flat Squares
-          Topic: /husky_mesh_map/debug_cloud/MultiReconPC
+          Topic: /husky_mesh_navigation/debug_cloud/MultiReconPC
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true

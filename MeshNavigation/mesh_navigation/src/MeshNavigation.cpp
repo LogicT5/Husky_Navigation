@@ -125,7 +125,7 @@ void MeshNavigation::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
     oOdomPoint.y = oTrajectory.pose.pose.position.y;//x in loam is y
     oOdomPoint.z = oTrajectory.pose.pose.position.z;//y in loam is z
     RobotPose.position = oOdomPoint;
-    o_AStarPlanner.setStartNode(octomap::point3d(oOdomPoint.x,oOdomPoint.y,oOdomPoint.z+0.835));
+    // o_AStarPlanner.setStartNode(octomap::point3d(oOdomPoint.x,oOdomPoint.y,oOdomPoint.z+0.583));
 
     // Eigen::Quaterniond quaternion( oTrajectory.pose.pose.orientation.w,
     //                                                     oTrajectory.pose.pose.orientation.x,
@@ -309,8 +309,8 @@ void MeshNavigation::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsg
     pcl::PointCloud<pcl::PointNormal>::Ptr pFramePN(new pcl::PointCloud<pcl::PointNormal>);
     pcl::fromROSMsg(oMeshMsgs, *pFramePN);
 
-    // if (pFramePN->is_dense == false) //false 是填充过后的点云
-    if(n_NextGoalNodeFlag)
+    if (pFramePN->is_dense == false) //false 是填充过后的点云
+    // if(n_NextGoalNodeFlag)
     {
         m_pSingReconPN->clear();
         m_pGroundPN->clear();
@@ -358,7 +358,7 @@ void MeshNavigation::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsg
         m_pMeshMapTree->updateInnerOccupancy();
         // MeshBoundary(pFramePN,vCloudRes,m_pBoundPN);
         PublishPointCloud(debug_SingReconPCPub,*m_pSingReconPN);
-        o_AStarPlanner.setOctomap(m_pMeshMapTree);
+        // o_AStarPlanner.setOctomap(m_pMeshMapTree);
         //TODO 路径检查
         if(n_NextGoalNodeFlag)
         {
@@ -373,10 +373,9 @@ void MeshNavigation::HandleCloudNormals(const sensor_msgs::PointCloud2 &oMeshMsg
                 PublishPointCloud(debug_NonGroundPCPub,*m_pNongroundPN);
                 PublishPointCloud(debug_BoundPCPub,*m_pBoundPN);
                 n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
-                o_AStarPlanner.setEndNode(octomap::point3d(n_GoalNode.x,n_GoalNode.y,n_GoalNode.z+0.835));
-                //TODO 路径规划
-                o_AStarPlanner.AStarPlanning();
-                o_AStarPlanner.getPath();
+                // o_AStarPlanner.setEndNode(octomap::point3d(n_GoalNode.x,n_GoalNode.y,n_GoalNode.z+0.583));
+                // o_AStarPlanner.AStarPlanning();
+                // o_AStarPlanner.getPath();
             }  
         }
         m_pMeshMapTree->updateInnerOccupancy();
@@ -392,6 +391,18 @@ void MeshNavigation::FilterPreselectionPoints(pcl::PointCloud<pcl::PointNormal>:
     // MeshBoundary(pGroundPN,pBoundaryPN);
     pBoundaryPN = m_pBoundPN;
 
+    if(n_pPastNodeCloud->points.size() >0)
+        for(auto pastPoint:n_pPastNodeCloud->points)
+        {
+            pcl::PointNormal point;
+            point.x = pastPoint.x;
+            point.y = pastPoint.y;
+            point.z = pastPoint.z;
+            point.normal_x = pastPoint.normal_x;
+            point.normal_y = pastPoint.normal_y;
+            point.normal_z = pastPoint.normal_z;
+            pBoundaryPN->push_back(point);
+        }
     pcl::UniformSampling<pcl::PointNormal> us;
     pcl::PointCloud<pcl::PointNormal>::Ptr pSamplingGroundCloud(new pcl::PointCloud<pcl::PointNormal>);
     us.setInputCloud(pGroundPN );
@@ -477,7 +488,8 @@ bool MeshNavigation::FilterTargetPoint(pcl::PointCloud<pcl::PointNormal>::Ptr pF
             MultiReconTree.radiusSearchT(pointxyz, search_radius, radius_indices, radius_sqr_distances);
             n_pPreselectionCloud->points[i].ExploreScore = (neares_indices.size() - radius_indices.size() ) / neares_indices.size();
         }
-        n_pPreselectionCloud->points[i].intensity = (1 - n_pPreselectionCloud->points[i].ExploreScore) * n_pPreselectionCloud->points[i].CosSimilarity *( 1 -  n_pPreselectionCloud->points[i].DistanceWeight);
+        // n_pPreselectionCloud->points[i].intensity = (1 - n_pPreselectionCloud->points[i].ExploreScore) * n_pPreselectionCloud->points[i].CosSimilarity * ( 1 -  n_pPreselectionCloud->points[i].DistanceWeight);
+        n_pPreselectionCloud->points[i].intensity = (1 - n_pPreselectionCloud->points[i].ExploreScore) * n_pPreselectionCloud->points[i].CosSimilarity;
 
         if (n_pPreselectionCloud->points[i].intensity > CosSim)
         {
@@ -764,7 +776,7 @@ void MeshNavigation::PublishMesh(const pcl::PointCloud<pcl::PointXYZ> &vMeshVert
 
 int main(int argc, char** argv){
 
-  ros::init(argc, argv, "husky_mesh_map");
+  ros::init(argc, argv, "husky_mesh_navigation");
   ros::NodeHandle node;
   ros::NodeHandle privateNode("~");
   
