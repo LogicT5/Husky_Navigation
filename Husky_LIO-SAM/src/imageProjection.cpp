@@ -190,8 +190,8 @@ public:
         subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(pointCloudTopic, 5, &ImageProjection::cloudHandler, this, ros::TransportHints().tcpNoDelay());
 
         // 发布Topic
-        pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/deskew/cloud_deskewed", 1);
-        pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info>("husky_husky_lio_sam/deskew/cloud_info", 1);
+        pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/deskew/cloud_deskewed", 1);
+        pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info>("husky_lio_sam/deskew/cloud_info", 1);
 
         // 初始化
         allocateMemory();

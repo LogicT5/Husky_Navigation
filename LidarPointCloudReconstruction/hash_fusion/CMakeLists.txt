@@ -20,14 +20,34 @@ find_package(catkin REQUIRED COMPONENTS
              std_msgs
              nav_msgs
              tf
-             sensor_msgs
              filters
+             message_generation 
+)
+
+add_service_files(
+  DIRECTORY srv
+  FILES
+  multi_recon.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  sensor_msgs
 )
 
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES record_odomlaser
-#  CATKIN_DEPENDS pcl_ros roscpp rospy sensor_msgs std_msgs tf
+ LIBRARIES record_odomlaser
+ CATKIN_DEPENDS 
+    pcl_ros 
+    roscpp 
+    rospy 
+    sensor_msgs 
+    std_msgs 
+    nav_msgs
+    tf
+    message_runtime
+    # message_generation
 #  DEPENDS system_lib
 )
 

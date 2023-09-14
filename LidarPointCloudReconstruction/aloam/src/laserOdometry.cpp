@@ -282,8 +282,8 @@ int main(int argc, char **argv)
 
                     //ceres::LossFunction *loss_function = NULL;
                     ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
-                    ceres::LocalParameterization *q_parameterization =
-                        new ceres::EigenQuaternionParameterization();
+                    ceres::Manifold *q_parameterization =
+                        new ceres::EigenQuaternionManifold();
                     ceres::Problem::Options problem_options;
 
                     ceres::Problem problem(problem_options);

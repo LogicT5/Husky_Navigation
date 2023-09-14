@@ -46,6 +46,8 @@ FramesFusion::FramesFusion(ros::NodeHandle & node,
 
   	//publish polygon constructed from one frame point cloud
 	m_oMeshPublisher = nodeHandle.advertise<visualization_msgs::MarkerArray>(m_sOutMeshTopic, 1, true);
+
+	m_oGetVoxelCloudService = nodeHandle.advertiseService("GetMultiReconVoxelCloud", &FramesFusion::GetVoxelCloudService, this);
 }
 
 void FramesFusion::LazyLoading() {
@@ -895,6 +897,7 @@ void FramesFusion::SlideModeling(pcl::PolygonMesh & oResultMesh, const int iFram
 		pcl::io::savePLYFileBinary(sOutputPath.str(), oCopyMesh);
 	}
 	//*/
+	m_oVoxeler.GetVolumeCloud(out2meshmap_VolumeCloud);
 }
 
 /*************************************************
@@ -1197,7 +1200,7 @@ void FramesFusion::HandleTrajectoryThread(const nav_msgs::Odometry & oTrajectory
 		#endif
 
 		//get the reconstructed surfaces
-		pcl::PolygonMesh oResultMeshes;
+		// pcl::PolygonMesh oResultMeshes;
 
 		struct timeval start;
 		gettimeofday(&start, NULL);
@@ -1533,4 +1536,16 @@ void FramesFusion::SurfelFusionQuick(pcl::PointNormal oLidarPos, pcl::PointCloud
 pcl::PointCloud<pcl::PointNormal>::Ptr AllCloud(pcl::PointCloud<pcl::PointNormal>& cloud_vector) {
 
     return cloud_vector.makeShared();
+}
+
+
+bool FramesFusion::GetVoxelCloudService(hash_fusion::multi_recon::Request& req, hash_fusion::multi_recon::Response& resp) {
+	pcl::PointCloud<pcl::PointXYZ> vVolumeCloud;
+	// m_oVoxeler.GetVolumeCloud(vVolumeCloud);
+	pcl::fromPCLPointCloud2(oResultMeshes.cloud, vVolumeCloud);
+	// resp.MultiRecon = oResultMeshes.cloud;
+	pcl::toROSMsg(vVolumeCloud,resp.MultiRecon);
+	resp.MultiRecon.header.frame_id = m_sOutMeshTFId;
+	resp.MultiRecon.header.stamp = ros::Time::now();
+	return true;
 }

@@ -79,14 +79,14 @@ public:
     {
         if(featureExtracted){
             // 订阅当前激光帧运动畸变校正后的点云信息
-            subLaserCloudInfo = nh.subscribe<husky_lio_sam::cloud_info>("husky_husky_lio_sam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
+            subLaserCloudInfo = nh.subscribe<husky_lio_sam::cloud_info>("husky_lio_sam/deskew/cloud_info", 1, &FeatureExtraction::laserCloudInfoHandler, this, ros::TransportHints().tcpNoDelay());
 
             // 发布当前激光帧提取特征之后的点云信息
-            pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info> ("husky_husky_lio_sam/feature/cloud_info", 1);
+            pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info> ("husky_lio_sam/feature/cloud_info", 1);
             // 发布当前激光帧的角点点云
-            pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/feature/cloud_corner", 1);
+            pubCornerPoints = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/feature/cloud_corner", 1);
             // 发布当前激光帧的面点点云
-            pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>("husky_husky_lio_sam/feature/cloud_surface", 1);
+            pubSurfacePoints = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/feature/cloud_surface", 1);
 
             initializationValue();
         }

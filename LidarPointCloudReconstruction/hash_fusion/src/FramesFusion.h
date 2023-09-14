@@ -34,6 +34,8 @@
 #include "tools/CloudVector.h"
 #include "tools/OutputUtils.h"
 
+#include "hash_fusion/multi_recon.h"
+
 // Trajectory state data. 
 struct RosTimePoint{
 
@@ -141,6 +143,8 @@ public:
 
     //reload, output point cloud with given feature for test
     void OutputPCFile(const pcl::PointCloud<pcl::PointXYZ> & vCloud, const std::vector<float> & vFeatures, bool bAllRecord = false);
+
+    bool GetVoxelCloudService(hash_fusion::multi_recon::Request& req, hash_fusion::multi_recon::Response& resp);
 
 protected:
     bool debug;
@@ -259,6 +263,8 @@ protected:
     // pcl::PointCloud<pcl::PointNormal> m_vNewPoints; //
     HashVoxeler m_oVoxeler;
 
+    pcl::PointCloud<pcl::PointNormal> out2meshmap_VolumeCloud;
+    pcl::PolygonMesh oResultMeshes;
     // meshing params
 	int m_iKeepTime;
 	int m_iConvDim;
@@ -269,6 +275,7 @@ protected:
     bool m_bUseUnionSetConnection;
     bool m_bOnlyMaxUnionSet;
 
+    ros::ServiceServer m_oGetVoxelCloudService;
     // // sdf
     // SignedDistance* m_pSdf;
     // std::mutex m_mSdfMutex;

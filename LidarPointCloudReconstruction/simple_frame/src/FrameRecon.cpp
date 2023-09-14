@@ -453,7 +453,7 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 			return;
 		}
 
-		// std::cout << "vLaserData.fields.size()  " << vLaserData.fields.size();
+		// std::cout << "vLaserData.fields.size :  " << vLaserData.fields.size();
 
 
 		if(vLaserData.fields.size() == 6) //velodyne  sensor_msgs::PointCloud2 {point x y z intensity ring time}

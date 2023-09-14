@@ -2,7 +2,7 @@
     
   <arg name="WorldName" default="clearpath_playpen" doc="Gazebo World Name"/>
 
-  <arg name="Navigation" default="false" doc="Navigation method  true -- meshMap   false -- topyMap"/>
+  <arg name="Navigation" default="true" doc="Navigation method  true -- meshMap   false -- topyMap"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find husky_gazebo)/worlds/$(arg WorldName).world"/>
@@ -20,14 +20,14 @@
   <!-- <include file="$(find husky_viz)/launch/view_husky.launch">
     <arg name="name" value="FrameRecon_rviz"/>
     <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FrameRecon.rviz"/>
-  </include>
+  </include> -->
 
-  <include file="$(find husky_viz)/launch/view_husky.launch">
+  <!-- <include file="$(find husky_viz)/launch/view_husky.launch">
     <arg name="name" value="FramesFusion_rviz"/>
     <arg name="rvizFile" value="-d $(find debug_tools)/rviz/FramesFusion.rviz"/>
-  </include>
+  </include> -->
 
-  <include file="$(find husky_viz)/launch/view_husky.launch">
+  <!-- <include file="$(find husky_viz)/launch/view_husky.launch">
     <arg name="name" value="TopoMap_rviz"/>
     <arg name="rvizFile" value="-d $(find debug_tools)/rviz/TopoMap.rviz"/>
   </include> -->
@@ -65,11 +65,11 @@
   </include> -->
 
 <group if="$(arg Navigation)">
-      <include file="$(find mesh_map)/launch/mesh_map.launch"/>
+      <include file="$(find mesh_navigation)/launch/mesh_map.launch"/>
 
-        <!-- <include file="$(find husky_navigation_goals)/launch/send_goal.launch">
-            <arg name="goalodomtopic" default="/husky_mesh_map/goal_odom" />
-        </include> -->
+        <include file="$(find husky_navigation_goals)/launch/send_goal.launch">
+            <arg name="goalodomtopic" default="/husky_mesh_navigation/goal_odom" />
+        </include>
 </group>
 <group unless="$(arg Navigation)">
     <!-- A node which estimates the ground, obstacle and boundary points using gp-insac algorithm-->

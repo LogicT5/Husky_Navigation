@@ -7,7 +7,7 @@
   
 
   <!-- Launch the husky goal package -->
-  <node pkg="mesh_map" type="mesh_map" name="husky_mesh_map" output="screen" >
+  <node pkg="mesh_navigation" type="mesh_navigation_mesh_map" name="husky_mesh_map" output="screen" >
     <param name="mesh_in_topic" type="string" value="$(arg meshIntopic)" />
     <param name="map_test_clouds" type="string" value="$(arg meshtestclouds)" />     
     <param name="lidarFrame" type="string" value="$(arg lidarFrame)" />

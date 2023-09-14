@@ -57,7 +57,7 @@
           <pose frame=''>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/vcc/husky_ws/src/Husky/husky_gazebo/Gazebo_model/RomanSquare_small/RomanSquare_small2.stl</uri>
+              <uri>/home/vcc/RomanSquare_small/RomanSquare_small2.stl</uri>
               <scale>0.8 0.8 0.8</scale>
             </mesh>
           </geometry>
@@ -70,7 +70,7 @@
           <pose frame=''>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/vcc/husky_ws/src/Husky/husky_gazebo/Gazebo_model/RomanSquare_small/RomanSquare_small2.stl</uri>
+              <uri>/home/vcc/RomanSquare_small/RomanSquare_small2.stl</uri>
               <scale>0.8 0.8 0.8</scale>
             </mesh>
           </geometry>
