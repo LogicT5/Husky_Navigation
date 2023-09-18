@@ -2,22 +2,27 @@
 
 namespace mesh_navigation
 {
-    MeshNavigation::MeshNavigation(ros::NodeHandle &node, ros::NodeHandle &nodeHandle) : n_pPlanNodeCloud(new pcl::PointCloud<NavPointType>),
+    MeshNavigation::MeshNavigation(ros::NodeHandle &node, ros::NodeHandle &nodeHandle) : 
+                                                                                         n_pPlanNodeCloud(new pcl::PointCloud<NavPointType>),
                                                                                          n_pPastNodeCloud(new pcl::PointCloud<NavPointType>),
                                                                                          n_pPreselectionCloud(new pcl::PointCloud<NavPointType>),
                                                                                          m_pMeshMapTree(new OcTreeT(0.05)),
+                                                                                         PathOcTree(new OcTreeT(0.05)),
                                                                                          m_pSingReconPN(new pcl::PointCloud<pcl::PointNormal>),
                                                                                          m_pGroundPN(new pcl::PointCloud<pcl::PointNormal>),
                                                                                          m_pNongroundPN(new pcl::PointCloud<pcl::PointNormal>),
                                                                                          m_pBoundPN(new pcl::PointCloud<pcl::PointNormal>),
-                                                                                         n_NextGoalNodeFlag(true)
+                                                                                         n_NextGoalNodeFlag(true),
+                                                                                         n_firstPathPlanFlag(true)
     {
         srand((unsigned)time(NULL));
 
         // read parameters
         ReadLaunchParams(nodeHandle);
         m_pMeshMapTree->setResolution(MapVoxelsSize);
+        PathOcTree->setResolution(MapVoxelsSize);
 
+        // o_AStarPlanner.setROSnodHandle(&nodeHandle);
         // subscribe (hear) the odometry information
         OdomSub = nodeHandle.subscribe(sub_OdomTopic, 1, &MeshNavigation::HandleTrajectory, this);
 
@@ -46,6 +51,7 @@ namespace mesh_navigation
 
         m_binaryMapPub = nodeHandle.advertise<octomap_msgs::Octomap>("octomap_binary", 1, true);
         m_fullMapPub = nodeHandle.advertise<octomap_msgs::Octomap>("octomap_full", 1, true);
+        m_PathOcTreePub = nodeHandle.advertise<octomap_msgs::Octomap>("PathOcTree_full", 1, true);
 
         if (lidarFrame != baselinkFrame)
         {
@@ -127,7 +133,6 @@ namespace mesh_navigation
         oOdomPoint.y = oTrajectory.pose.pose.position.y; // x in loam is y
         oOdomPoint.z = oTrajectory.pose.pose.position.z; // y in loam is z
         RobotPose.position = oOdomPoint;
-        o_AStarPlanner.setStartNode(octomap::point3d(oOdomPoint.x, oOdomPoint.y, oOdomPoint.z));
 
         // Eigen::Quaterniond quaternion( oTrajectory.pose.pose.orientation.w,
         //                                                     oTrajectory.pose.pose.orientation.x,
@@ -153,12 +158,13 @@ namespace mesh_navigation
                 if (abs(oOdomPoint.y - n_GoalNode.y) < 0.5)
                     if (abs(oOdomPoint.z - n_GoalNode.z) < 0.2 + 0.583)
                     {
-                        n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
                         n_pPastNodeCloud->push_back(n_pPlanNodeCloud->points.back());
                         n_pPlanNodeCloud->clear();
                         n_pPreselectionCloud->clear();
                         PublishPastNodeClouds();
                         PublishPreseNodeClouds();
+                        // o_AStarPlanner.setStartNode(octomap::point3d(oOdomPoint.x, oOdomPoint.y, oOdomPoint.z));
+                        n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
                     }
         }
     }
@@ -313,13 +319,13 @@ namespace mesh_navigation
         pcl::fromROSMsg(oMeshMsgs, *pFramePN);
 
         if (pFramePN->is_dense == false) // false 是填充过后的点云
-        // if(n_NextGoalNodeFlag)
+        // if (pFramePN->is_dense == false && n_NextGoalNodeFlag)
         {
             m_pSingReconPN->clear();
             m_pGroundPN->clear();
             m_pNongroundPN->clear();
             m_pBoundPN->clear();
-            // m_pMeshMapTree->clear();
+            m_pMeshMapTree->clear();
             if (lidarFrame != baselinkFrame)
                 pcl::transformPointCloud(*pFramePN, *m_pSingReconPN, Lidar2BaselinkTF4d);
 
@@ -330,11 +336,12 @@ namespace mesh_navigation
                 Eigen::Vector3d Vector_z(0, 0, 1);
                 Eigen::Vector3d PointNormal(point.normal_x, point.normal_y, point.normal_z);
 
-                if (point.z < 0.005)
+                if (point.z < 0.0)
                 {
                     if (abs(Vector_z.dot(PointNormal) - Vector_z.norm() * PointNormal.norm()) < 0.01)
                     {
-                        point.z = 0.0;
+                        point.z = -0.1651;
+                        // point.z = -0.1651 - m_pMeshMapTree->getResolution()/2 ;
                         vCloudRes[i] = 1;
                         m_pGroundPN->push_back(point);
 
@@ -358,31 +365,54 @@ namespace mesh_navigation
                 }
             }
 
-            m_pMeshMapTree->updateInnerOccupancy();
-            // MeshBoundary(pFramePN,vCloudRes,m_pBoundPN);
             PublishPointCloud(debug_SingReconPCPub, *m_pSingReconPN);
-            // o_AStarPlanner.setOctomap(m_pMeshMapTree);
+            // m_pMeshMapTree->updateInnerOccupancy();
+            // PublishFullOctoMap(*m_pMeshMapTree);
+
             // TODO 路径检查
+            //选择目标点，并规划路径
             if (n_NextGoalNodeFlag)
             {
                 MeshBoundary(m_pSingReconPN, vCloudRes, m_pBoundPN);
                 FilterPreselectionPoints(m_pGroundPN);
                 if (FilterTargetPoint(m_pGroundPN))
                 {
-                    // PublishGoalOdom(n_GoalNode);
-                    // PublishPlanNodeClouds();
-                    // PublishPreseNodeClouds();
-                    // PublishPointCloud(debug_GroundPCPub, *m_pGroundPN);
-                    // PublishPointCloud(debug_NonGroundPCPub, *m_pNongroundPN);
-                    // PublishPointCloud(debug_BoundPCPub, *m_pBoundPN);
-                    // n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
-                    o_AStarPlanner.setEndNode(octomap::point3d(-5.051168, -2.031460, 0.583));
+                    AStarPlanner::AStarPlanner o_AStarPlanner;
+                    PublishGoalOdom(n_GoalNode);
+                    PublishPlanNodeClouds();
+                    PublishPreseNodeClouds();
+                    PublishPointCloud(debug_GroundPCPub, *m_pGroundPN);
+                    PublishPointCloud(debug_NonGroundPCPub, *m_pNongroundPN);
+                    PublishPointCloud(debug_BoundPCPub, *m_pBoundPN);
+                    o_AStarPlanner.setOctomap(m_pMeshMapTree);
+                    // if (n_firstPathPlanFlag)
+                    // {
+                    o_AStarPlanner.setStartNode(octomap::point3d(RobotPose.position.x, RobotPose.position.y, 0));
+                    //     n_firstPathPlanFlag = !n_firstPathPlanFlag;
+                    // }
+                    
+                    o_AStarPlanner.setEndNode(octomap::point3d(-10.051168, -2.031460, 0));
+                    // o_AStarPlanner.setEndNode(octomap::point3d(n_GoalNode.x, n_GoalNode.y, 0));
                     o_AStarPlanner.AStarPlanning();
-                    o_AStarPlanner.getPath();
+                    // o_AStarPlanner.getPath();
+                    m_pMeshMapTree->updateInnerOccupancy();
+                    PublishFullOctoMap(*m_pMeshMapTree);
+                    // pcl::PointCloud<pcl::PointXYZ> PathOcTreeP = o_AStarPlanner.getTreeNodeVoxel();
+                    // for(auto point:PathOcTreeP.points)
+                    // {
+                    //     PathOcTree->updateNode(point.x, point.y, point.z, true);
+                    //     PathOcTree->integrateNodeColor(point.x, point.y, point.z, 245, 222, 179);
+                    // }
+                    // PathOcTree->updateInnerOccupancy();
+                    //PublishFullOctoMap(m_PathOcTreePub,*PathOcTree);
+                    o_AStarPlanner.PublishAStarPathOcTree();
+                    n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
                 }
             }
-            m_pMeshMapTree->updateInnerOccupancy();
+            // m_pMeshMapTree->updateInnerOccupancy();
             PublishFullOctoMap(*m_pMeshMapTree);
+            // octomap::ColorOcTree *debugMap = o_AStarPlanner.getOctomap();
+            // PublishFullOctoMap(*debugMap);
         }
     }
 
@@ -492,7 +522,7 @@ namespace mesh_navigation
                 n_pPreselectionCloud->points[i].ExploreScore = (neares_indices.size() - radius_indices.size()) / neares_indices.size();
             }
             // n_pPreselectionCloud->points[i].intensity = (1 - n_pPreselectionCloud->points[i].ExploreScore) * n_pPreselectionCloud->points[i].CosSimilarity * ( 1 -  n_pPreselectionCloud->points[i].DistanceWeight);
-            n_pPreselectionCloud->points[i].intensity = (1 - n_pPreselectionCloud->points[i].ExploreScore) * n_pPreselectionCloud->points[i].CosSimilarity;
+            n_pPreselectionCloud->points[i].intensity = (1 - n_pPreselectionCloud->points[i].ExploreScore) * (1-n_pPreselectionCloud->points[i].CosSimilarity);
 
             if (n_pPreselectionCloud->points[i].intensity > CosSim)
             {
@@ -654,6 +684,18 @@ namespace mesh_navigation
 
         if (octomap_msgs::fullMapToMsg(m_octree, map))
             m_fullMapPub.publish(map);
+        else
+            ROS_ERROR("Error serializing OctoMap");
+    }
+
+    void MeshNavigation::PublishFullOctoMap(ros::Publisher Pub,octomap::ColorOcTree &m_octree)
+    {
+        octomap_msgs::Octomap map;
+        map.header.frame_id = pub_MapFrame;
+        map.header.stamp = ros::Time::now();
+
+        if (octomap_msgs::fullMapToMsg(m_octree, map))
+            Pub.publish(map);
         else
             ROS_ERROR("Error serializing OctoMap");
     }

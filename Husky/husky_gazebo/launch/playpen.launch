@@ -27,8 +27,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <!-- <arg name="world_name" value="$(find husky_gazebo)/worlds/clearpath_playpen.world"/> -->
-    <arg name="world_name" value="$(find husky_gazebo)/worlds/RomanSquare_small.world"/>
-    <!-- <arg name="world_name" value="$(find husky_gazebo)/worlds/building.world"/> -->
+    <!-- <arg name="world_name" value="$(find husky_gazebo)/worlds/RomanSquare_small.world"/> -->
+    <arg name="world_name" value="$(find husky_gazebo)/worlds/building.world"/>
     <!-- <arg name="world_name" value="$(find husky_gazebo)/worlds/world.world"/> -->
 
 

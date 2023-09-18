@@ -348,7 +348,7 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 				pcl::PointCloud<pcl::PointXYZI>::Ptr pCenterPoints(new pcl::PointCloud<pcl::PointXYZI>);
 				//compute the centerpoint of each faces
 				//The centerpoint re-represents its face
-				oMeshOper.ComputeCenterPoint(*pSectorCloud, vOneFaces, *pCenterPoints);
+				// oMeshOper.ComputeCenterPoint(*pSectorCloud, vOneFaces, *pCenterPoints);
 
 				//face normals
 				Eigen::MatrixXf& oMatNormal = m_vMatNormal[i];
@@ -377,8 +377,8 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 				std::vector<float>& vFaceWeight = m_vFaceWeight[i];
 				vFaceWeight.resize(vOneFaces.size(), 0.0f);
 				//Remove pseudo triangles according to scanning rules of LiDAR
-				RemovePseudoFaces(*pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
-				// RemovePseudoFacesAndComputeCenterPoint(*pSectorCloud, *pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
+				// RemovePseudoFaces(*pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
+				RemovePseudoFacesAndComputeCenterPoint(*pSectorCloud, *pCenterPoints, vOneFaces, oMatNormal, vTrueFaceStatus, vFaceWeight);
 
 				//propagate the normal vector to each vertex
 				//linearly compute weighted neighboring normal vector

@@ -95,12 +95,12 @@ public:
             try
             {
                 // 等待3s
-                tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time(0), ros::Duration(3.0));
+                tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time::now(), ros::Duration(3.0));
                 // lidar系到baselink系的变换
-                tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time(0), lidar2Baselink);
+                tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time::now(), lidar2Baselink);
 
-                tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time(0), odometryFrame,"base_link_odom"));
-                tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time(0), odometryFrame,"base_link_map"));        
+                tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time::now(), odometryFrame,"base_link_odom"));
+                tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time::now(), odometryFrame,"base_link_map"));        
 
                 ///*Debug
                 #ifdef DEBUG
@@ -242,8 +242,8 @@ public:
         tfOdom2BaseLink.sendTransform(odom_2_baselink);
         // 发布载体的odom系用于后续开发，事实上与载体系相同
         // 考虑到后续开发，坐标系统一先建立，有没有用调试完在看
-        tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(odom2baselinkodomFrame, odomMsg->header.stamp, odometryFrame,"base_link_odom"));     
-        tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(map2baselinkmapFrame, odomMsg->header.stamp, mapFrame,"base_link_map"));     
+        tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(odom2baselinkodomFrame, ros::Time::now(), odometryFrame,"base_link_odom"));     
+        tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(map2baselinkmapFrame, ros::Time::now(), mapFrame,"base_link_map"));     
         // 发布imu里程计路径，注：只是最近一帧激光里程计时刻与当前时刻之间的一段
         static nav_msgs::Path imuPath;
         static double last_path_time = -1;
