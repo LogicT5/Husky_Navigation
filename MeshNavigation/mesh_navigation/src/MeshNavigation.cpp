@@ -26,7 +26,7 @@ namespace mesh_navigation
         // subscribe (hear) the odometry information
         OdomSub = nodeHandle.subscribe(sub_OdomTopic, 1, &MeshNavigation::HandleTrajectory, this);
 
-        // m_sMeshSuber = nodeHandle.subscribe(m_sMeshTopic,1,&MeshNavigation::HandleMesh,this);
+        SingleFrameMeshSub = nodeHandle.subscribe("/frame_meshs",1,&MeshNavigation::HandleMesh,this);
 
         CloudNormalsSub = nodeHandle.subscribe("/frame_cloudnormals", 1, &MeshNavigation::HandleCloudNormals, this);
 
@@ -41,6 +41,8 @@ namespace mesh_navigation
         debug_NonGroundPCPub = nodeHandle.advertise<sensor_msgs::PointCloud2>("debug_cloud/NonGroundPC", 1, true);
         debug_BoundPCPub = nodeHandle.advertise<sensor_msgs::PointCloud2>("debug_cloud/BoundPC", 1, true);
         debug_MultiReconPCPub = nodeHandle.advertise<sensor_msgs::PointCloud2>("debug_cloud/MultiReconPC", 1, true);
+
+        debug_SingleFrameMeshPub = nodeHandle.advertise<visualization_msgs::Marker>("debug_cloud/SingleFrameMesh", 1, true);
 
         debug_CloudPub = nodeHandle.advertise<sensor_msgs::PointCloud2>("debug_clouds", 1, true);
 
@@ -170,10 +172,10 @@ namespace mesh_navigation
     }
 
     void MeshNavigation::HandleMesh(const visualization_msgs::Marker &oMeshMsgs)
-    { /*
+    { ///*
          if(n_NextGoalNodeFlag)
          {
-             n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
+            //  n_NextGoalNodeFlag = !n_NextGoalNodeFlag;
              pcl::PointCloud<pcl::PointXYZ>::Ptr verMeshCloud(new pcl::PointCloud<pcl::PointXYZ>);
              pcl::PointCloud<pcl::PointNormal>::Ptr pMapCloud(new pcl::PointCloud<pcl::PointNormal>);
 
@@ -230,72 +232,72 @@ namespace mesh_navigation
              }//end k
 
              // 目标点进行采样
-             pcl::UniformSampling<pcl::PointNormal> us;
-             pcl::PointCloud<pcl::PointNormal>::Ptr pSamplingMapCloud(new pcl::PointCloud<pcl::PointNormal>);
-             us.setInputCloud(pMapCloud );
-             us.setRadiusSearch(3.0f);
-             us.filter(*pSamplingMapCloud);
+            //  pcl::UniformSampling<pcl::PointNormal> us;
+            //  pcl::PointCloud<pcl::PointNormal>::Ptr pSamplingMapCloud(new pcl::PointCloud<pcl::PointNormal>);
+            //  us.setInputCloud(pMapCloud );
+            //  us.setRadiusSearch(3.0f);
+            //  us.filter(*pSamplingMapCloud);
 
-             pcl::PointCloud<pcl::PointXYZ>::Ptr  vBoundaryCloud(new pcl::PointCloud<pcl::PointXYZ>);
-             MeshBoundary(verMeshCloud,vBoundaryCloud);
+            //  pcl::PointCloud<pcl::PointXYZ>::Ptr  vBoundaryCloud(new pcl::PointCloud<pcl::PointXYZ>);
+            //  MeshBoundary(verMeshCloud,vBoundaryCloud);
 
-             pcl::search::KdTree<pcl::PointXYZ> BoundTree;
-             BoundTree.setInputCloud(vBoundaryCloud);
-             float max_dist = 2.5;
-             for(int i =0 ;i <pSamplingMapCloud->points.size();++i)
-             {
-                 std::vector<int> indices(1);
-                 std::vector<float> sqr_distances(1);
+            //  pcl::search::KdTree<pcl::PointXYZ> BoundTree;
+            //  BoundTree.setInputCloud(vBoundaryCloud);
+            //  float max_dist = 2.5;
+            //  for(int i =0 ;i <pSamplingMapCloud->points.size();++i)
+            //  {
+            //      std::vector<int> indices(1);
+            //      std::vector<float> sqr_distances(1);
 
-                 pcl::PointXYZ point;
-                 point.x = pSamplingMapCloud->points[i].x;
-                 point.y = pSamplingMapCloud->points[i].y;
-                 point.z = pSamplingMapCloud->points[i].z;
-                 BoundTree.nearestKSearch(point, 1, indices, sqr_distances);
-                 if (sqr_distances[0] > max_dist )
-                     if(sqrt(pow(point.x,2)+pow(point.y,2)) > 3)
-                     {
-                         // pMapCloud->points[i].z = pMapCloud->points[i].z+0.583;
-                         // pMapCloud->points[i].z = 0.583;
-                         PlanCloud->push_back(pSamplingMapCloud->points[i]);
-                     }
-             }
+            //      pcl::PointXYZ point;
+            //      point.x = pSamplingMapCloud->points[i].x;
+            //      point.y = pSamplingMapCloud->points[i].y;
+            //      point.z = pSamplingMapCloud->points[i].z;
+            //      BoundTree.nearestKSearch(point, 1, indices, sqr_distances);
+            //      if (sqr_distances[0] > max_dist )
+            //          if(sqrt(pow(point.x,2)+pow(point.y,2)) > 3)
+            //          {
+            //              // pMapCloud->points[i].z = pMapCloud->points[i].z+0.583;
+            //              // pMapCloud->points[i].z = 0.583;
+            //              PlanCloud->push_back(pSamplingMapCloud->points[i]);
+            //          }
+            //  }
              // std::cout<<"n_NextGoalNodeFlag: "<<n_NextGoalNodeFlag<<std::endl;
 
              //余弦相似性 计算周围法向量的一致性选点
-             double CosSim = 0.0;
-             pcl::search::KdTree<pcl::PointNormal> pMapTree;
-             pMapTree.setInputCloud(pMapCloud);
-             for(int i =0 ;i <PlanCloud->points.size();++i)
-             {
-                 std::vector<int> indices(10);
-                 std::vector<float> sqr_distances(10);
+            //  double CosSim = 0.0;
+            //  pcl::search::KdTree<pcl::PointNormal> pMapTree;
+            //  pMapTree.setInputCloud(pMapCloud);
+            //  for(int i =0 ;i <PlanCloud->points.size();++i)
+            //  {
+            //      std::vector<int> indices(10);
+            //      std::vector<float> sqr_distances(10);
 
-                 pMapTree.nearestKSearchT(PlanCloud->points[i],10,indices,sqr_distances);
-                 double cs = CosineSimilarity(PlanCloud->points[i],pMapCloud,indices);
-                 if (cs > CosSim)
-                 {
-                     CosSim = cs;
-                     m_oNodeGoal.x = PlanCloud->points[i].x;
-                     m_oNodeGoal.y = PlanCloud->points[i].y;
-                     m_oNodeGoal.z = PlanCloud->points[i].z+0.583;
-                 }
-             }
+            //      pMapTree.nearestKSearchT(PlanCloud->points[i],10,indices,sqr_distances);
+            //      double cs = CosineSimilarity(PlanCloud->points[i],pMapCloud,indices);
+            //      if (cs > CosSim)
+            //      {
+            //          CosSim = cs;
+            //          m_oNodeGoal.x = PlanCloud->points[i].x;
+            //          m_oNodeGoal.y = PlanCloud->points[i].y;
+            //          m_oNodeGoal.z = PlanCloud->points[i].z+0.583;
+            //      }
+            //  }
 
 
              // m_oNodeGoal .z = m_oNodeGoal.z +0.583;
 
-             m_pPlanNodeCloud->push_back(m_oNodeGoal);
+            //  m_pPlanNodeCloud->push_back(m_oNodeGoal);
 
              // PublishPointCloud(*pSamplingMapCloud);
-             PublishPointCloud(*PlanCloud);
+            //  PublishPointCloud(*PlanCloud);
              // PublishPointCloud(*pMapCloud);
              // PublishPointCloud(*vBoundaryCloud);
-             PublishMeshs(*verMeshCloud);
-             PublishPlanNodeClouds();
-             PublishGoalOdom(m_oNodeGoal);
+             PublishMesh(*verMeshCloud);
+            //  PublishPlanNodeClouds();
+            //  PublishGoalOdom(m_oNodeGoal);
 
-             PlanCloud->clear();
+            //  PlanCloud->clear();
          }//*/
     }
 
@@ -780,7 +782,7 @@ namespace mesh_navigation
 
     void MeshNavigation::PublishMesh(const pcl::PointCloud<pcl::PointXYZ> &vMeshVertices)
     {
-        /*
+        ///*
           //new a visual message
           visualization_msgs::Marker oMeshMsgs;
 
@@ -824,8 +826,8 @@ namespace mesh_navigation
 
           }//end k
 
-          m_oMeshPublisher.publish(oMeshMsgs);
-      */
+          debug_SingleFrameMeshPub.publish(oMeshMsgs);
+      //*/
     }
 
 }

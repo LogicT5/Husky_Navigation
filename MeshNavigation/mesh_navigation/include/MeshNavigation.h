@@ -108,15 +108,18 @@ namespace mesh_navigation
         std::string lidarFrame;             // 雷达系
         std::string baselinkFrame;          // 载体系
         Eigen::Matrix4d Lidar2BaselinkTF4d; // 雷达系与载体的变换矩阵，作用与两系不同时
-        // input topics:
+
+        // subscrib topics:
         ros::Subscriber OdomSub;         // odom订阅
         ros::Subscriber CloudNormalsSub; // 单帧重建订阅
+        ros::Subscriber SingleFrameMeshSub; // 单帧重建订阅
         ros::ServiceClient MultiFrameReconCli;
 
         std::string sub_OdomTopic; // Odom Topic id
 
         //********发布相关Topic********
         std::string pub_CloudFrame; // 发布点云坐标系
+        std::string pub_SingleFrameMesh;
         std::string pub_MapFrame;
         std::string pub_GoalOdomFrame;
 
@@ -124,8 +127,6 @@ namespace mesh_navigation
         std::string pub_nPlanNodeTopic;
         std::string pub_nPastNodeTopic;
         std::string pub_nGoalNodeTopic;
-
-        ros::Publisher debug_CloudPub;
 
         ros::Publisher n_PreseNodePub;
         ros::Publisher n_PlanNodePub; // planning nodes publisher for display
@@ -139,6 +140,14 @@ namespace mesh_navigation
 
         tf::TransformBroadcaster tfOdom2BaseLinkOdomFrame;
         tf::TransformBroadcaster tfMap2BaseLinkMapFrame;
+
+        ros::Publisher debug_CloudPub;
+        ros::Publisher debug_SingReconPCPub;
+        ros::Publisher debug_GroundPCPub;
+        ros::Publisher debug_NonGroundPCPub;
+        ros::Publisher debug_BoundPCPub;
+        ros::Publisher debug_MultiReconPCPub;
+        ros::Publisher debug_SingleFrameMeshPub;
 
         //****************变量声明***************************
         double MapVoxelsSize = 0.25;
@@ -161,14 +170,6 @@ namespace mesh_navigation
         // the positions of robot
         std::queue<pcl::PointXYZ> m_vOdomViews; // I dont think it is necessary to use a circle vector
         std::queue<pcl::PointXYZ> m_vOdomShocks;
-
-        // AStarPlanner::AStarPlanner o_AStarPlanner;
-
-        ros::Publisher debug_SingReconPCPub;
-        ros::Publisher debug_GroundPCPub;
-        ros::Publisher debug_NonGroundPCPub;
-        ros::Publisher debug_BoundPCPub;
-        ros::Publisher debug_MultiReconPCPub;
 
     public:
         MeshNavigation(ros::NodeHandle &node, ros::NodeHandle &nodeHandle);
