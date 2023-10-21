@@ -7,7 +7,7 @@ SignedDistance::SignedDistance(int iKeepTime, int iConvDim, int iConvAddPointNum
 	m_iConvHalfDim = m_iConvDim / 2;
 };
 
-void SignedDistance::BuildUnionSet(HashVoxeler & oVoxeler, UnionSet& oUnionSet) {
+void SignedDistance::BuildUnionSet(VolumeBase & oVoxeler, UnionSet& oUnionSet) {
 
 	constexpr int xyz_order[][4] = {{0, 1, 4, 5}, {0, 3, 4, 7}, {0, 1, 2, 3}};
 	constexpr int xyz_delta[][3] = {{-1, 0, 0}, {0, -1, 0}, {0, 0, -1}};
@@ -28,17 +28,12 @@ void SignedDistance::BuildUnionSet(HashVoxeler & oVoxeler, UnionSet& oUnionSet) 
 	}
 }
 
-std::unordered_map<HashPos, float, HashFunc> & SignedDistance::NormalBasedGlance(HashVoxeler & oVoxeler) {
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::DebugGlance(VolumeBase & oVoxeler) {
 
-	//****get the nodes that are near the surface****
-	HashVoxeler::HashVolume vTempVolumeCopy;
-	oVoxeler.GetRecentVolume(vTempVolumeCopy, m_iKeepTime);
-	// oVoxeler.GetRecentNoneFlowVolume(vTempVolumeCopy, m_iKeepTime);
-	// oVoxeler.GetRecentHighDistributionVolume(vTempVolumeCopy, m_iKeepTime);
-	m_vVolumeCopy = vTempVolumeCopy;
-
+	oVoxeler.GetRecentAllVolume(m_vVolumeCopy, m_iKeepTime);
+	
 	// meshing
-	const HashVoxeler::HashVolume & vVolumeToMeshing = m_vVolumeCopy;
+	const VolumeBase::HashVolume & vVolumeToMeshing = m_vVolumeCopy;
 
 	//compute the sampled point normal based on the face normal
 	ConvexHullOperation oConvexHullOPer;
@@ -49,45 +44,117 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::NormalBasedGlance
 	oConvexHullOPer.ComputeAllFaceParams(vVolumeToMeshing, vVoxelNormalPara);
 
 	//output
-	return PlanDistance(vVolumeToMeshing, vVoxelNormalPara, oVoxeler.m_oVoxelLength);
+	return PlanDistance(vVolumeToMeshing, vVoxelNormalPara, oVoxeler.GetVoxelLength());
 }
 
-std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlance(HashVoxeler & oVoxeler) {
-	
-	HashVoxeler::HashVolume vTempVolumeCopy;
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::NormalBasedGlance(VolumeBase & oVoxeler) {
+
+	//****get the nodes that are near the surface****
+	VolumeBase::HashVolume vTempVolumeCopy;
 	oVoxeler.GetRecentVolume(vTempVolumeCopy, m_iKeepTime);
-	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.m_oVoxelLength);
+	// oVoxeler.GetRecentNoneFlowVolume(vTempVolumeCopy, m_iKeepTime);
+	// oVoxeler.GetRecentHighDistributionVolume(vTempVolumeCopy, m_iKeepTime);
+	m_vVolumeCopy = vTempVolumeCopy;
+
+	// meshing
+	const VolumeBase::HashVolume & vVolumeToMeshing = m_vVolumeCopy;
+
+	//compute the sampled point normal based on the face normal
+	ConvexHullOperation oConvexHullOPer;
+
+	std::unordered_map<HashPos, FacePara, HashFunc> vVoxelNormalPara;
+
+	//compute the sampled point normal and divde it into point and normal
+	oConvexHullOPer.ComputeAllFaceParams(vVolumeToMeshing, vVoxelNormalPara);
+
+	//output
+	return PlanDistance(vVolumeToMeshing, vVoxelNormalPara, oVoxeler.GetVoxelLength());
 }
 
-std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceNoneFlow(HashVoxeler & oVoxeler) {
-
-	HashVoxeler::HashVolume vTempVolumeCopy;
-	oVoxeler.GetRecentNoneFlowVolume(vTempVolumeCopy, m_iKeepTime);
-	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.m_oVoxelLength);
-}
-
-std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceLargeUnion(HashVoxeler & oVoxeler) {
-
-	HashVoxeler::HashVolume vTempVolumeCopy;
-	oVoxeler.GetRecentConnectVolume(vTempVolumeCopy, m_iKeepTime, 200);
-	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.m_oVoxelLength);
-}
-
-std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceOnlyMaxUnion(HashVoxeler & oVoxeler) {
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlance(VolumeBase & oVoxeler, visualization_msgs::MarkerArray* oDebugMarker) {
 	
-	HashVoxeler::HashVolume vTempVolumeCopy;
-	oVoxeler.GetRecentMaxConnectVolume(vTempVolumeCopy, m_iKeepTime);
-	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.m_oVoxelLength);
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetRecentVolume(vTempVolumeCopy, m_iKeepTime);
+	CopyAndExpandVolume(vTempVolumeCopy);
+
+	if(oDebugMarker != nullptr) 
+		oVoxeler.DrawVolume(vTempVolumeCopy, *oDebugMarker);
+
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
 }
 
-std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(HashVoxeler::HashVolume& vTempVolumeCopy, const pcl::PointXYZ oVoxelSize) {
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceNoneFlow(VolumeBase & oVoxeler, visualization_msgs::MarkerArray* oDebugMarker) {
+
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetRecentNoneFlowVolume(vTempVolumeCopy, m_iKeepTime);
+	CopyAndExpandVolume(vTempVolumeCopy);
+
+	if(oDebugMarker != nullptr) 
+		oVoxeler.DrawVolume(vTempVolumeCopy, *oDebugMarker);
+
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
+}
+
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceLargeUnion(VolumeBase & oVoxeler, const int iRemoveSizeRef, visualization_msgs::MarkerArray* oDebugMarker) {
+
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetRecentConnectVolume(vTempVolumeCopy, m_iKeepTime, iRemoveSizeRef);
+	CopyAndExpandVolume(vTempVolumeCopy);
+
+	if(oDebugMarker != nullptr) 
+		oVoxeler.DrawVolume(vTempVolumeCopy, *oDebugMarker);
+
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
+}
+
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceAllUnion(VolumeBase & oVoxeler, const int iRemoveSizeRef) {
+
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetAllConnectVolume(vTempVolumeCopy, iRemoveSizeRef);
+	CopyAndExpandVolume(vTempVolumeCopy);
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
+}
+
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceAll(VolumeBase & oVoxeler) {
+
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetAllVolume(vTempVolumeCopy);
+	m_vVolumeCopy = vTempVolumeCopy;
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
+}
+
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceOnlyMaxUnion(VolumeBase & oVoxeler, visualization_msgs::MarkerArray* oDebugMarker) {
+	
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetRecentMaxConnectVolume(vTempVolumeCopy, m_iKeepTime);
+	CopyAndExpandVolume(vTempVolumeCopy);
+
+	if(oDebugMarker != nullptr) 
+		oVoxeler.DrawVolume(vTempVolumeCopy, *oDebugMarker);
+
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
+}
+
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::CenterBasedGlance(VolumeBase & oVoxeler, const Eigen::Vector3f vCenter, const float fRadius, const int iRemoveSizeRef, visualization_msgs::MarkerArray* oDebugMarker) {
+
+	VolumeBase::HashVolume vTempVolumeCopy;
+	oVoxeler.GetLocalConnectVolume(vTempVolumeCopy, vCenter, fRadius, iRemoveSizeRef);
+	CopyAndExpandVolume(vTempVolumeCopy);
+
+	if(oDebugMarker != nullptr) 
+		oVoxeler.DrawVolume(vTempVolumeCopy, *oDebugMarker);
+
+	return ConvedGlanceCore(vTempVolumeCopy, oVoxeler.GetVoxelLength());
+}
+
+void SignedDistance::CopyAndExpandVolume(VolumeBase::HashVolume& vTempVolumeCopy) {
 
 	m_vVolumeCopy = vTempVolumeCopy;
 
 	// /* expand - not that good, only fill small holes, but runs too slow(if 3d expand)
-	for(auto && [oPos,oPoint] : vTempVolumeCopy) {
+	for(auto && [oPos,oPoint] : m_vVolumeCopy) {
 
-		// judge normal main direction to speed up
+		// /* judge normal main direction to speed up
 		Eigen::Vector3f vNormal(oPoint.normal_x, oPoint.normal_y, oPoint.normal_z);
 		vNormal = vNormal.cwiseAbs();
 		int index;
@@ -99,6 +166,7 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(
 		int end_x   = index == 0 ? 0 : m_iConvHalfDim;
 		int end_y   = index == 1 ? 0 : m_iConvHalfDim;
 		int end_z   = index == 2 ? 0 : m_iConvHalfDim;
+		//*/
 	 
 		for(int dx = start_x; dx <= end_x; ++dx) {
 		for(int dy = start_y; dy <= end_y; ++dy) {
@@ -115,6 +183,9 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(
 		}}}
 	}
 	//*/
+}
+
+std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(VolumeBase::HashVolume& vTempVolumeCopy, const Eigen::Vector3f& oVoxelSize) {
 
 	// /*
 	clock_t start_time, conv_time;
@@ -177,15 +248,39 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(
 
 			// use min level to update the normal
 			const HashPos oCurrentPos(oPos.x, oPos.y, oPos.z);
-			if(normal_distribution_distance > m_fConvFusionDistanceRef1) {
+			// add point 
+			if(!m_vVolumeCopy.count(oCurrentPos)) {
+				
+				if(point_count < m_iConvAddPointNumRef) continue;
+
+				pcl::PointNormal oVoxelNormal;
+				oVoxelNormal.x = oFusedNormal.x;
+				oVoxelNormal.y = oFusedNormal.y;
+				oVoxelNormal.z = oFusedNormal.z;
+				oVoxelNormal.data_c[1] = __INT_MAX__; /*means the point is added*/
+				oVoxelNormal.data_c[3] = normal_distribution_distance;
+				oVoxelNormal.normal_x = oFusedNormal.normal_x;
+				oVoxelNormal.normal_y = oFusedNormal.normal_y;
+				oVoxelNormal.normal_z = oFusedNormal.normal_z;
+				oVoxelNormal.data_n[3] = all_weight; 
+
+				Eigen::Vector3f oCorner;
+				VolumeBase::HashPosTo3DPos(oCurrentPos, oVoxelSize, oCorner);
+				oCorner += oVoxelSize * 0.5;
+				Eigen::Vector3f vPoint = oVoxelNormal.getVector3fMap();
+				Eigen::Vector3f vNormal = oVoxelNormal.getNormalVector3fMap();
+				if(abs(vNormal.dot(oCorner - vPoint)) < oVoxelSize.norm() * 0.5)
+					m_vVolumeCopy[oCurrentPos] = oVoxelNormal;
+			}
+			else if(normal_distribution_distance > m_fConvFusionDistanceRef1) {
 
 				// copy fused points to octree neighbors
 				if(point_count < 3) {
 					m_vVolumeCopy.erase(oCurrentPos);
 				}
-				else if(m_vVolumeCopy.count(oCurrentPos) || point_count >= m_iConvAddPointNumRef) {
+				else {
 					
-					uint32_t voxel_token = m_vVolumeCopy.count(oCurrentPos) ? 0x3fffffff /*means the point is fused*/: __INT_MAX__ /* means the point is added*/;
+					uint32_t voxel_token = 0x3fffffff; /*means the point is fused*/
 
 					pcl::PointNormal& oVoxelNormal = m_vVolumeCopy[oCurrentPos];
 					oVoxelNormal.x = oFusedNormal.x;
@@ -198,20 +293,6 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(
 					oVoxelNormal.normal_z = oFusedNormal.normal_z;
 					oVoxelNormal.data_n[3] = all_weight;
 				}
-			}
-			// add point whatever
-			else if(!m_vVolumeCopy.count(oCurrentPos) && point_count > 0) {
-					
-					pcl::PointNormal& oVoxelNormal = m_vVolumeCopy[oCurrentPos];
-					oVoxelNormal.x = oFusedNormal.x;
-					oVoxelNormal.y = oFusedNormal.y;
-					oVoxelNormal.z = oFusedNormal.z;
-					oVoxelNormal.data_c[1] = __INT_MAX__;
-					oVoxelNormal.data_c[3] = normal_distribution_distance;
-					oVoxelNormal.normal_x = oFusedNormal.normal_x;
-					oVoxelNormal.normal_y = oFusedNormal.normal_y;
-					oVoxelNormal.normal_z = oFusedNormal.normal_z;
-					oVoxelNormal.data_n[3] = all_weight;
 			}
 		}
 
@@ -233,7 +314,7 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(
 //*/
 
 	// meshing
-	const HashVoxeler::HashVolume & vVolumeToMeshing = m_vVolumeCopy;
+	const VolumeBase::HashVolume & vVolumeToMeshing = m_vVolumeCopy;
 
 	//compute the sampled point normal based on the face normal
 	ConvexHullOperation oConvexHullOPer;
@@ -248,7 +329,7 @@ std::unordered_map<HashPos, float, HashFunc> & SignedDistance::ConvedGlanceCore(
 
 }
 
-unordered_map<HashPos, float, HashFunc> & SignedDistance::PlanDistance(const HashVoxeler::HashVolume & vVolume, const unordered_map<HashPos, FacePara, HashFunc> & vNormalPara, const pcl::PointXYZ oVoxelSize) {
+unordered_map<HashPos, float, HashFunc> & SignedDistance::PlanDistance(const VolumeBase::HashVolume & vVolume, const unordered_map<HashPos, FacePara, HashFunc> & vNormalPara, const Eigen::Vector3f& oVoxelSize) {
 
 	m_vSignedDistance.clear();
 	unordered_map<HashPos, int, HashFunc> vCornerHits;
@@ -258,12 +339,12 @@ unordered_map<HashPos, float, HashFunc> & SignedDistance::PlanDistance(const Has
 	for (auto && [oPos,_] : vVolume) {
 		
 		std::vector<HashPos> vCornerPoses;
-		HashVoxeler::GetCornerPoses(oPos, vCornerPoses);
+		VolumeBase::GetCornerPoses(oPos, vCornerPoses);
 
 		for(auto && oCornerPos : vCornerPoses) {
 			
 			Eigen::Vector3f oOneCorner;
-			HashVoxeler::HashPosTo3DPos(oCornerPos, oVoxelSize, oOneCorner);
+			VolumeBase::HashPosTo3DPos(oCornerPos, oVoxelSize, oOneCorner);
 			float fSignValue = oNormalOper.PointToFaceDis(oOneCorner, vNormalPara.at(oPos).oNormal, vNormalPara.at(oPos).fDparam);
 			m_vSignedDistance[oCornerPos] += fSignValue;
 			++vCornerHits[oCornerPos];

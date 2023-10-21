@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   octomap_ros
   octomap_msgs
+  shape_msgs
   ompl
   message_generation
 )
@@ -26,6 +27,13 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(octomap REQUIRED)
 
 find_package(fcl REQUIRED)
+
+add_message_files(
+  DIRECTORY msg
+  FILES
+  MeshArray.msg
+  FrameRecon.msg
+)
 
 add_service_files(
   # DIRECTORY ../../LidarPointCloudReconstruction/hash_fusion/srv
@@ -37,6 +45,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   sensor_msgs
+  shape_msgs
 )
 
 
@@ -44,7 +53,7 @@ catkin_package(
  INCLUDE_DIRS include
 #  LIBRARIES husky_mesh_map
 CATKIN_DEPENDS 
-  message_runtime
+message_runtime
 # nav_msgs pcl_ros roscpp rospy sensor_msgs std_msgs tf
 #  DEPENDS system_lib
 )
@@ -52,15 +61,14 @@ CATKIN_DEPENDS
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${OCTOMAP_INCLUDE_DIRS}
 )
 
 aux_source_directory(src/Boundary Boundary_DIR_SRCS)
 add_library(Boundary STATIC ${Boundary_DIR_SRCS})
-
-include_directories( ${OCTOMAP_INCLUDE_DIRS})
-
+# add_library(src/MeshMap.cpp)
 ###### build ########
-add_executable(${PROJECT_NAME}_Navigation src/MeshNavigation.cpp)
+add_executable(${PROJECT_NAME}_Navigation src/MeshNavigation.cpp src/MeshMap.cpp)
 add_dependencies(${PROJECT_NAME}_Navigation ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}_Navigation ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OCTOMAP_LIBRARIES} Boundary)
 

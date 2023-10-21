@@ -1,5 +1,6 @@
 #include "ExplicitRec.h"
 
+#include <ros/ros.h>
 #include <iostream>
 #include <sstream>     
 #include <pcl/io/ply_io.h>    
@@ -184,15 +185,23 @@ void ExplicitRec::RemovePseudoFacesAndComputeCenterPoint(const pcl::PointCloud<p
 				index_b = j + 1;
 			pcl::PointXYZI oSectorPoint_a = vSectorPoints.points[vFaces[i].vertices[index_a]];
 			pcl::PointXYZI oSectorPoint_b = vSectorPoints.points[vFaces[i].vertices[index_b]];
+			//视点到面片点上的水平距离
 			float SectorPoint_a_Dis = (oSectorPoint_a.x - m_oViewPoint.x) * (oSectorPoint_a.x - m_oViewPoint.x) + (oSectorPoint_a.y - m_oViewPoint.y) * (oSectorPoint_a.y - m_oViewPoint.y);
 			float SectorPoint_b_Dis = (oSectorPoint_b.x - m_oViewPoint.x) * (oSectorPoint_b.x - m_oViewPoint.x) + (oSectorPoint_b.y - m_oViewPoint.y) * (oSectorPoint_b.y - m_oViewPoint.y);
-			//
-			if (oSectorPoint_a.intensity < oSectorPoint_b.intensity)
-				if(SectorPoint_a_Dis - SectorPoint_b_Dis > 0.2) 
+			//两点间距离
+			float distance_ab = sqrt( pow(oSectorPoint_a.x - oSectorPoint_b.x,2) + pow(oSectorPoint_a.y - oSectorPoint_b.y,2) + pow(oSectorPoint_a.z - oSectorPoint_b.z,2));
+
+			if (oSectorPoint_a.intensity == oSectorPoint_b.intensity)
+				if(distance_ab > 0.5) 
 					vTrueFaceStatus[i] = false;
+			// if (oSectorPoint_a.intensity > oSectorPoint_b.intensity)
+			// 	if(SectorPoint_a_Dis - SectorPoint_b_Dis > 0.5) 
+			// 		vTrueFaceStatus[i] = false;
+
 			// 一条边跨越了多条雷达线
 			if(abs(oSectorPoint_a.intensity - oSectorPoint_b.intensity)>1)
 				vTrueFaceStatus[i] = false;
+
 		}
 		// 这个面由同一线上的点构成
 		if(vSectorPoints.points[vFaces[i].vertices[0]].intensity == vSectorPoints.points[vFaces[i].vertices[1]].intensity && vSectorPoints.points[vFaces[i].vertices[1]].intensity == vSectorPoints.points[vFaces[i].vertices[2]].intensity)
@@ -221,11 +230,11 @@ void ExplicitRec::RemovePseudoFacesAndComputeCenterPoint(const pcl::PointCloud<p
 			vTrueFaceStatus[i] = false;
 		
 		// if (vSectorPoints.points[vFaces[i].vertices[0]].z > -1 || vSectorPoints.points[vFaces[i].vertices[1]].z > -1 || vSectorPoints.points[vFaces[i].vertices[2]].z > -1)
-		if(vCenterPoints.points[i].z > - 0.7)
-		{
-			if (fabs(vFaceWeight[i]) < 0.2)
-				vTrueFaceStatus[i] = false;
-		}
+		// if(vCenterPoints.points[i].z > - 0.7)
+		// {
+		// 	if (fabs(vFaceWeight[i]) < 0.2)
+		// 		vTrueFaceStatus[i] = false;
+		// }
 		// float  fVert = oHorPlanN.dot(oMatNormal.row(i));
 		// if (fVert < (-1.0f + fVerticalThr) && pCenterPoints->points[i].z < m_oViewPoint.z)
 		// 	vTrueFaceStatus[i] = false;
@@ -235,7 +244,6 @@ void ExplicitRec::RemovePseudoFacesAndComputeCenterPoint(const pcl::PointCloud<p
 
 	}//end for i
 }
-
 /*=======================================
 FrameReconstruction
 Input: vSceneCloud - one frame point clouds
@@ -247,12 +255,6 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 
 	vScenePNormal.clear();
 	vScenePNormal.reserve(vSceneCloud.points.size());
-	// std::cout<<"vScenePNormal.points:"
-	// 			<<vScenePNormal.points.size()
-	// 			<<std::endl;
-	// std::cout<<"vSceneCloud.points:"
-	// 		<<vSceneCloud.points.size()
-	// 		<<std::endl;
 
 	//******Sector division******
 	//point index for each sector
@@ -262,9 +264,6 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 	oSectorDivider.SetOriginPoint(m_oViewPoint);
 	//divide clouds into sector area
 	oSectorDivider.ComputePointSectorIdxs(vSceneCloud, vPointSecIdxs);
-		// std::cout<<"vPointSecIdxs:"
-		// 	<<vPointSecIdxs.size()
-		// 	<<std::endl;
 
 	//point clouds in each sector
 	m_vAllSectorClouds.clear();
@@ -325,7 +324,6 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 				//get the surfaces that are not connected to the viewpoint
 				std::vector<pcl::Vertices> vOneFaces;
 				vOneFaces = hpdhpr.ConstructSurfaceIdxFiltered(line_min, line_max);
-
 				// vOneFaces = hpdhpr.ConstructSurfaceIdx();
 
 				/*输出单份的重建网格结果
@@ -382,7 +380,7 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 
 				//propagate the normal vector to each vertex
 				//linearly compute weighted neighboring normal vector
-				oMeshOper.LocalFaceNormalAndConfidence(*pSectorCloud, vOneFaces, oMatNormal, m_oViewPoint, vCombinedNormalList[i]);
+				oMeshOper.LocalFaceNormalAndDistanceConfidence(*pSectorCloud, vOneFaces, oMatNormal, m_oViewPoint, vTrueFaceStatus, vCombinedNormalList[i]);
 
 				//***record data***
 				//output normal
@@ -450,6 +448,103 @@ void ExplicitRec::FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vS
 			vScenePNormal.points.push_back(vCombinedNormalList[i].points[j]);
 }
 
+void ExplicitRec::OriginalReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vSceneCloud) {
+
+	//******Sector division******
+	//point index for each sector
+	std::vector<std::vector<int>> vPointSecIdxs;
+	DivideSector oSectorDivider(m_iSectNum);
+	//set the viewpoint as 2D coordinate origin
+	oSectorDivider.SetOriginPoint(m_oViewPoint);
+	//divide clouds into sector area
+	oSectorDivider.ComputePointSectorIdxs(vSceneCloud, vPointSecIdxs);
+
+	//point clouds in each sector
+	m_vAllSectorClouds.clear();
+	m_vAllSectorClouds.resize(vPointSecIdxs.size());
+
+	//triangular face in each sector
+	m_vAllSectorFaces.clear();
+	m_vAllSectorFaces.resize(vPointSecIdxs.size());
+
+	//多线程分离Normal
+	std::vector<pcl::PointCloud<pcl::PointNormal>> vCombinedNormalList;
+	vCombinedNormalList.resize(vPointSecIdxs.size());
+	std::mutex convex_hull;
+	std::vector<std::thread> thread_pool;
+	std::vector<std::function<void(void)>> thread_func(vPointSecIdxs.size());
+	const bool bMultiThread = m_bMultiThread;
+
+	for(int i = 0; i != vPointSecIdxs.size(); ++i) {
+		thread_func[i] = [&, i, bMultiThread]() { 
+			//If the points in a sector is sufficient to calculate
+			if (vPointSecIdxs[i].size() > m_iSectorMinPNum){
+
+				//point clouds inside one sector
+				pcl::PointCloud<pcl::PointXYZI>::Ptr pSectorCloud(new pcl::PointCloud<pcl::PointXYZI>);
+
+				//get a point clouds in one section
+				for (int j = 0; j != vPointSecIdxs[i].size(); ++j) {
+					//get point index
+					int iSecPointInAllIdx = vPointSecIdxs[i][j];
+					//construct point clouds
+					pSectorCloud->points.push_back(vSceneCloud.points[iSecPointInAllIdx]);
+				}
+
+				if (m_bElevationFlag){
+					pcl::PointXYZI oViewGroundP;
+					oViewGroundP.x = m_oViewPoint.x;
+					oViewGroundP.y = m_oViewPoint.y;
+					oViewGroundP.z = m_oViewPoint.z - m_fViewElevation;
+					pSectorCloud->points.push_back(oViewGroundP);
+				}
+
+				//******Mesh building******
+				//***GHPR mesh building***
+				GHPR hpdhpr(m_oViewPoint, m_GHPRParam);
+
+				//perform reconstruction
+				if(bMultiThread)
+					hpdhpr.ComputeMultiThread(pSectorCloud);
+				else
+					hpdhpr.Compute(pSectorCloud);
+
+				//get the surfaces that are not connected to the viewpoint
+				std::vector<pcl::Vertices> vOneFaces;
+				vOneFaces = hpdhpr.ConstructSurfaceIdx(false);
+
+				//collect the vertices and faces in each sector
+				m_vAllSectorClouds[i] = pSectorCloud;
+				m_vAllSectorClouds[i]->push_back(m_oViewPoint);
+				m_vAllSectorFaces[i] = vOneFaces;
+				
+			}else{
+				
+				pcl::PointCloud<pcl::PointXYZI>::Ptr pSectorCloud(new pcl::PointCloud<pcl::PointXYZI>);
+				m_vAllSectorClouds[i] = pSectorCloud;
+
+				std::vector<pcl::Vertices> vOneNewFaces;
+				m_vAllSectorFaces[i] = vOneNewFaces;
+			
+			}//end if vPointSecIdxs[i].size() > m_iSectorMinPNum
+		};
+	}
+	
+	if(bMultiThread) {
+
+		//triangular mesh in each sector
+		for (int i = 0; i != vPointSecIdxs.size(); ++i)
+			thread_pool.emplace_back(thread_func[i]);
+
+		for(int i = 0; i != vPointSecIdxs.size(); ++i)
+				thread_pool[i].join(); 
+	}
+	else {
+
+		for(int i = 0; i != vPointSecIdxs.size(); ++i)
+			thread_func[i]();
+	}
+}
 
 /*=======================================
 OutputAllMeshes
@@ -525,6 +620,110 @@ void ExplicitRec::OutputAllMeshes(pcl::PolygonMesh & MeshModel){
 
 	//pcl::io::savePLYFileBinary("reconstruction_res.ply", MeshModel);
 
+}
+
+void ExplicitRec::OutputSectorMesh(shape_msgs::Mesh& mesh, int sectorId) {
+
+	if(sectorId >= m_vAllSectorClouds.size()){
+		ROS_ERROR("SectorId out of size");
+		return;
+	}
+
+	//new a point idx in scene point clouds
+	mesh.vertices.clear();
+	mesh.triangles.clear();
+
+	//for each point in a sector
+	for (int j = 0; j != m_vAllSectorClouds[sectorId]->points.size(); ++j){
+		
+		geometry_msgs::Point point;
+		point.x = m_vAllSectorClouds[sectorId]->points[j].x;
+		point.y = m_vAllSectorClouds[sectorId]->points[j].y;
+		point.z = m_vAllSectorClouds[sectorId]->points[j].z;
+		mesh.vertices.push_back(point);
+
+	}//end j
+
+	//for each face
+	for (int j = 0; j != m_vAllSectorFaces[sectorId].size(); ++j){
+
+		shape_msgs::MeshTriangle triangle;
+
+		//for each face vertex id
+		for (int k = 0; k != 3; ++k){
+			
+			//vertex id in each sector
+			int iVertexSectorIdx = m_vAllSectorFaces[sectorId][j].vertices[k];
+
+			triangle.vertex_indices[k] = iVertexSectorIdx;
+				
+		}//end k
+
+		mesh.triangles.push_back(triangle);
+
+	}//end j
+}
+
+/*=======================================
+OutputAllMeshes
+Input: none
+Outout: mesh - mesh msg of all point clouds
+========================================*/
+void ExplicitRec::OutputAllMeshes(shape_msgs::Mesh & mesh){
+
+	//new a point idx in scene point clouds
+	std::vector<std::vector<int>> vPointInAllDataIdx(m_vAllSectorClouds.size(), std::vector<int>());
+	mesh.vertices.clear();
+	mesh.triangles.clear();
+
+	int iPNum = 0;
+	
+	//for each sector
+	for (int i = 0; i != m_vAllSectorClouds.size(); ++i){
+
+		//for each point in a sector
+		for (int j = 0; j != m_vAllSectorClouds[i]->points.size(); ++j){
+			
+			geometry_msgs::Point point;
+			point.x = m_vAllSectorClouds[i]->points[j].x;
+			point.y = m_vAllSectorClouds[i]->points[j].y;
+			point.z = m_vAllSectorClouds[i]->points[j].z;
+			mesh.vertices.push_back(point);
+
+			//get point index in all point clouds
+			vPointInAllDataIdx[i].push_back(iPNum);
+			iPNum++;
+
+		}//end j
+
+	}//end i
+
+	//for each sector
+	for (int i = 0; i != m_vAllSectorFaces.size(); ++i){
+		
+		//for each face
+		for (int j = 0; j != m_vAllSectorFaces[i].size(); ++j){
+
+			shape_msgs::MeshTriangle triangle;
+
+			//for each face vertex id
+			for (int k = 0; k != 3; ++k){
+				
+				//vertex id in each sector
+				int iVertexSectorIdx = m_vAllSectorFaces[i][j].vertices[k];
+
+				//vertex id in all data
+				int iVertexGlobalIdx = vPointInAllDataIdx[i][iVertexSectorIdx];
+
+				triangle.vertex_indices[k] = iVertexGlobalIdx;
+					
+			}//end k
+
+			mesh.triangles.push_back(triangle);
+		
+		}//end j
+
+	}//end i
 }
 
 /*=======================================

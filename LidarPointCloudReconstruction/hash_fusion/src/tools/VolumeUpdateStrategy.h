@@ -83,7 +83,7 @@ class StrictStaticStrategy : public VolumeUpdateStrategy {
 
 private:
 
-    constexpr static int static_need_support = 7;
+    constexpr static int static_need_support = 33;
     constexpr static int max_conflict = -1;
 
 public:

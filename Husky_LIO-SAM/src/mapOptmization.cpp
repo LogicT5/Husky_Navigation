@@ -43,7 +43,10 @@
 
 #include <gtsam/nonlinear/ISAM2.h>
 
-#include "Scancontext.h"
+//frame recon
+// #include "frame_recon/FrameRecon.h"
+
+// #include "Scancontext.h"
 using namespace gtsam;
 
 using symbol_shorthand::X; // Pose3 (x,y,z,r,p,y)
@@ -105,6 +108,9 @@ public:
     ros::Publisher pubRecentKeyFrame;
     ros::Publisher pubCloudRegisteredRaw;
     ros::Publisher pubLoopConstraintEdge;
+
+    ros::Publisher pubSingleFramePointCloud;
+    ros::Publisher pubSingleFrameOdom;
 
     ros::Publisher pubSLAMInfo;
     ros::Publisher pubGpsOdom;
@@ -189,8 +195,10 @@ public:
     Eigen::Affine3f incrementalOdometryAffineFront;
     Eigen::Affine3f incrementalOdometryAffineBack;
 
+    tf::StampedTransform lidar2Baselink;
+
     // scancontext loop closure
-    SCManager scManager;
+    // SCManager scManager;
 
     mapOptimization()
     {
@@ -240,7 +248,9 @@ public:
 
         pubSLAMInfo           = nh.advertise<husky_lio_sam::cloud_info>("husky_lio_sam/mapping/slam_info", 1);
 
-        
+        pubSingleFramePointCloud = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/secial_output/SingleFramePoints",1);
+        pubSingleFrameOdom = nh.advertise<nav_msgs::Odometry>("husky_lio_sam/secial_output/SingleFrameOdom", 1);
+
         downSizeFilterSurf.setLeafSize(mappingSurfLeafSize, mappingSurfLeafSize, mappingSurfLeafSize);
         
         if(featureExtracted)
@@ -297,6 +307,22 @@ public:
             kdtreeCornerFromMap.reset(new pcl::KdTreeFLANN<PointType>());
          }
 
+        if(lidarFrame != baselinkFrame)
+        {
+            tf::TransformListener tfListener;
+            try
+            {
+                // 等待3s
+                tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time::now(), ros::Duration(3.0));
+                // lidar系到baselink系的变换
+                tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time::now(), lidar2Baselink);
+            }
+            catch (tf::TransformException ex)
+            {
+                ROS_ERROR("%s",ex.what());
+            }
+        }
+
         for (int i = 0; i < 6; ++i){
             transformTobeMapped[i] = 0;
         }
@@ -352,6 +378,11 @@ public:
         }
 
         std::lock_guard<std::mutex> lock(mtx);
+
+        // SingleFrameRecon sFrameRecon;
+        // sFrameRecon.setViewPoint(oCurrentViewP);
+        // sFrameRecon.FrameRecon(fullCloud);
+        // sFrameRecon.PublishMeshs(nh);
 
         // mapping执行频率控制
         static double timeLastProcessing = -1;
@@ -791,7 +822,7 @@ public:
         loopIndexContainer[loopKeyCur] = loopKeyPre;
     }
 
- // copy from sc-lio-sam
+//  copy from sc-lio-sam
     void performSCLoopClosure()
     {
         if (cloudKeyPoses3D->points.empty() == true)
@@ -804,12 +835,12 @@ public:
 
         // find keys
         // first: nn index, second: yaw diff 
-        auto detectResult = scManager.detectLoopClosureID(); 
+        // auto detectResult = scManager.detectLoopClosureID(); 
         int loopKeyCur    = copy_cloudKeyPoses3D->size() - 1;;
-        int loopKeyPre    = detectResult.first;
-        float yawDiffRad  = detectResult.second; // not use for v1 (because pcl icp withi initial somthing wrong...)
-        if( loopKeyPre == -1)
-            return;
+        // int loopKeyPre    = detectResult.first;
+        // float yawDiffRad  = detectResult.second; // not use for v1 (because pcl icp withi initial somthing wrong...)
+        // if( loopKeyPre == -1)
+        //     return;
 
         auto it = loopIndexContainer.find(loopKeyCur);
         if (it != loopIndexContainer.end())
@@ -823,7 +854,7 @@ public:
         {
             int base_key = 0;
             loopFindNearKeyframes(cureKeyframeCloud, loopKeyCur, 0, base_key); // giseop 
-            loopFindNearKeyframes(prevKeyframeCloud, loopKeyPre, historyKeyframeSearchNum, base_key); // giseop 
+            // loopFindNearKeyframes(prevKeyframeCloud, loopKeyPre, historyKeyframeSearchNum, base_key); // giseop 
 
             if (cureKeyframeCloud->size() < 300 || prevKeyframeCloud->size() < 1000)
                 return;
@@ -891,13 +922,13 @@ public:
 
         // Add pose constraint
         mtx.lock();
-        loopIndexQueue.push_back(make_pair(loopKeyCur, loopKeyPre));
+        // loopIndexQueue.push_back(make_pair(loopKeyCur, loopKeyPre));
         loopPoseQueue.push_back(poseFrom.between(poseTo));
         loopNoiseQueue.push_back(robustConstraintNoise);
         mtx.unlock();
 
         // add loop constriant
-        loopIndexContainer[loopKeyCur] = loopKeyPre;
+        // loopIndexContainer[loopKeyCur] = loopKeyPre;
     }
 
     bool detectLoopClosureDistance(int *latestID, int *closestID)
@@ -1012,7 +1043,7 @@ public:
         downSizeFilterICP.filter(*cloud_temp);
         *nearKeyframes = *cloud_temp;
     }
-void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const int& key, const int& searchNum, const int& loop_index)
+    void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const int& key, const int& searchNum, const int& loop_index)
     {
         // extract near keyframes
         nearKeyframes->clear();
@@ -2063,25 +2094,25 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
             // - SINGLE_SCAN_FULL: using downsampled original point cloud (/full_cloud_projected + downsampling)
             // - SINGLE_SCAN_FEAT: using surface feature as an input point cloud for scan context (2020.04.01: checked it works.)
             // - MULTI_SCAN_FEAT: using NearKeyframes (because a MulRan scan does not have beyond region, so to solve this issue ... )
-            const SCInputType sc_input_type = SCInputType::SINGLE_SCAN_FULL; // change this 
+            // const SCInputType sc_input_type = SCInputType::SINGLE_SCAN_FULL; // change this 
 
-            if( sc_input_type == SCInputType::SINGLE_SCAN_FULL )
-            {
-                pcl::PointCloud<PointType>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<PointType>());
-                pcl::fromROSMsg(cloudInfo.cloud_deskewed, *thisRawCloudKeyFrame);
+            // if( sc_input_type == SCInputType::SINGLE_SCAN_FULL )
+            // {
+            //     pcl::PointCloud<PointType>::Ptr thisRawCloudKeyFrame(new pcl::PointCloud<PointType>());
+            //     pcl::fromROSMsg(cloudInfo.cloud_deskewed, *thisRawCloudKeyFrame);
 
-                scManager.makeAndSaveScancontextAndKeys(*thisRawCloudKeyFrame);
-            }  
-            else if (sc_input_type == SCInputType::SINGLE_SCAN_FEAT)
-            { 
-                scManager.makeAndSaveScancontextAndKeys(*thisSurfKeyFrame); 
-            }
-            else if (sc_input_type == SCInputType::MULTI_SCAN_FEAT)
-            { 
-                pcl::PointCloud<PointType>::Ptr multiKeyFrameFeatureCloud(new pcl::PointCloud<PointType>());
-                loopFindNearKeyframes(multiKeyFrameFeatureCloud, cloudKeyPoses6D->size() - 1, historyKeyframeSearchNum, -1);
-                scManager.makeAndSaveScancontextAndKeys(*multiKeyFrameFeatureCloud); 
-            }
+            //     scManager.makeAndSaveScancontextAndKeys(*thisRawCloudKeyFrame);
+            // }  
+            // else if (sc_input_type == SCInputType::SINGLE_SCAN_FEAT)
+            // { 
+            //     scManager.makeAndSaveScancontextAndKeys(*thisSurfKeyFrame); 
+            // }
+            // else if (sc_input_type == SCInputType::MULTI_SCAN_FEAT)
+            // { 
+            //     pcl::PointCloud<PointType>::Ptr multiKeyFrameFeatureCloud(new pcl::PointCloud<PointType>());
+            //     loopFindNearKeyframes(multiKeyFrameFeatureCloud, cloudKeyPoses6D->size() - 1, historyKeyframeSearchNum, -1);
+            //     scManager.makeAndSaveScancontextAndKeys(*multiKeyFrameFeatureCloud); 
+            // }
         }
         // save path for visualization
         updatePath(thisPose6D);
@@ -2158,7 +2189,34 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
         laserOdometryROS.pose.pose.position.z = transformTobeMapped[5];
         laserOdometryROS.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
         pubLaserOdometryGlobal.publish(laserOdometryROS);
-        
+
+        nav_msgs::Odometry SingleFrameOdometry;
+        SingleFrameOdometry.header.stamp = timeLaserInfoStamp;
+        SingleFrameOdometry.header.frame_id = odometryFrame;
+        SingleFrameOdometry.pose.pose.position.x = transformTobeMapped[3];
+        SingleFrameOdometry.pose.pose.position.y = transformTobeMapped[4];
+        SingleFrameOdometry.pose.pose.position.z = transformTobeMapped[5];
+        if(lidarFrame != baselinkFrame)
+        {
+            Eigen::Vector3d position_point(transformTobeMapped[3], transformTobeMapped[4], transformTobeMapped[5]);
+            // Eigen::Matrix4f Lidar2BaselinkTF4f;
+            tf::Vector3 translation = lidar2Baselink.inverse().getOrigin();
+            tf::Quaternion rotation = lidar2Baselink.inverse().getRotation();
+            // 将位移和旋转转换为Eigen类型
+            Eigen::Quaterniond rotation_eigen(rotation.w(), rotation.x(), rotation.y(), rotation.z());
+
+            Eigen::Affine3d transform = Eigen::Affine3d::Identity();
+            transform.translation()<<translation.x(), translation.y(), translation.z();
+            transform.rotate(rotation_eigen);
+
+            Eigen::Vector3d transformed_point = transform * position_point;
+            SingleFrameOdometry.pose.pose.position.x = transformed_point.x();
+            SingleFrameOdometry.pose.pose.position.y = transformed_point.y();
+            SingleFrameOdometry.pose.pose.position.z = transformed_point.z();
+        }
+        SingleFrameOdometry.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]);
+        pubSingleFrameOdom.publish(SingleFrameOdometry);
+
         // Publish TF
         static tf::TransformBroadcaster br;
         tf::Transform t_odom_to_lidar = tf::Transform(tf::createQuaternionFromRPY(transformTobeMapped[0], transformTobeMapped[1], transformTobeMapped[2]),
@@ -2251,12 +2309,25 @@ void loopFindNearKeyframes(pcl::PointCloud<PointType>::Ptr& nearKeyframes, const
             *cloudOut = *transformPointCloud(cloudOut,  &thisPose6D);
             publishCloud(pubCloudRegisteredRaw, cloudOut, timeLaserInfoStamp, odometryFrame);
 
-            debugPointCloudPub = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/debug/debugPointCloud",1);
-            sensor_msgs::PointCloud2 debugPointCloud;
-            pcl::toROSMsg(*cloudOut,  debugPointCloud);
-            debugPointCloud.header.frame_id = "odom"; 
-            debugPointCloud.header.stamp = ros::Time::now();
-            debugPointCloudPub.publish(debugPointCloud);
+        }
+        if(pubSingleFramePointCloud.getNumSubscribers() !=0)
+        {
+            // 输出用于单帧重建的点云
+            pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
+            pcl::fromROSMsg(cloudInfo.cloud_deskewed, *cloudOut);
+            PointTypePose thisPose6D = trans2PointTypePose(transformTobeMapped);
+            *cloudOut = *transformPointCloud(cloudOut,  &thisPose6D);
+            pcl::PointCloud<pcl::PointXYZI>::Ptr sOutputCloud(new pcl::PointCloud<pcl::PointXYZI>());
+            for (int i = 0; i < cloudOut->points.size();i++)
+            {
+                pcl::PointXYZI thisPoint;
+                thisPoint.x = cloudOut->points[i].x;
+                thisPoint.y = cloudOut->points[i].y;
+                thisPoint.z = cloudOut->points[i].z;
+                thisPoint.intensity = cloudOut->points[i].ring;
+                sOutputCloud->push_back(thisPoint);
+            }
+            publishCloud(pubSingleFramePointCloud, sOutputCloud, timeLaserInfoStamp, odometryFrame);
         }
         // publish path
         if (pubPath.getNumSubscribers() != 0)

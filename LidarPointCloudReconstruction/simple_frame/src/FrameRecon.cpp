@@ -46,11 +46,9 @@ void FrameRecon::LazyLoading() {
 
     m_oAdditionalPointPublisher = nodeHandle.advertise<sensor_msgs::PointCloud2>(m_sAdditionalPointTopic, 1, true); //发布补充的点云
 
-	#ifdef DEBUG
-        if(debug){
-	  	debugSubOdome = nodeHandle.advertise<nav_msgs::Odometry>("/FrameRecon/Debug/Subodom",1,true);
-		debugNPointCloud = nodeHandle.advertise<sensor_msgs::PointCloud2>("/FrameRecon/Debug/NPointCloud", 1, true);} //发布补充的点云
-	#endif
+	m_oMeshAlgoPublisher = nodeHandle.advertise<fusion_msgs::MeshArray>(m_sOutMeshAlgoTopic, 1, true); // 用于后续处理的网格消息
+
+	m_oFrameReconMeshPublisher = nodeHandle.advertise<fusion_msgs::FrameRecon>(m_sOutMeshTopic + "_FrameRecon", 1, true);
 }
 
 /*************************************************
@@ -71,27 +69,14 @@ FrameRecon::~FrameRecon() {
 		<< "Average recontime per frame: " << m_dAverageReconstructTime / m_iReconstructFrameNum << "ms"
 		<< ";\t Max frame time: " << m_dMaxReconstructTime << "ms"
 		<< std::format_white << std::endl;
-	
+
+	// /* output times
 	if(m_bOutputFiles) {
-		outTimeFile.close();
+		std::stringstream sEvalFileName;
+		sEvalFileName << m_sFileHead << "AlgoTime.csv"; 
+		std::cout << "The output eval file is " << sEvalFileName.str() << std::endl;
+		timer.OutputDebug(sEvalFileName.str());
 	}
-
-	/* TODO: output raw point cloud
-	//define ouput ply file name
-	m_sOutPCNormalFileName << m_sFileHead << "Map_PCNormal.ply"; 
-
-    //output to the screen
-    std::cout << std::endl;
-    std::cout << std::endl;
-    std::cout << "********************************************************************************" << std::endl;
-	std::cout << "Please do not force closing the programe, the process is writing output PLY file." << std::endl;
-	std::cout << "It may take times (Writing 500M file takes about 20 seconds in usual)." << std::endl;
-	std::cout << "The output file is " << m_sOutPCNormalFileName.str() << std::endl;
-
-	//output point clouds with computed normals to the files when the node logs out
-	pcl::io::savePLYFileASCII(m_sOutPCNormalFileName.str(), m_vMapPCN);
-
-	std::cout << "Output is complete! The process will be automatically terminated. Thank you for waiting. " << std::endl;
 	//*/
 
 }
@@ -113,7 +98,6 @@ Others: none
 
 bool FrameRecon::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 
-	nodeHandle.param("debug",debug,false);
 	//output file name
 	node.param("sf_output_path", m_sFileHead, std::string());
 	if(m_sFileHead.empty())
@@ -123,23 +107,9 @@ bool FrameRecon::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 	if(m_bOutputFiles) {
 
 		if(m_sFileHead.back() != '/') m_sFileHead += "/";
-
 		std::stringstream sOutputCommand;
 		sOutputCommand << "mkdir -p " << m_sFileHead;
 		system(sOutputCommand.str().c_str());
-
-		std::stringstream sOutputTimeFileCommand;
-		std::string sOutputTimeFile = m_sFileHead+"ReconTime.txt";
-		// std::cout<<"OutputTimeFile:  "<<sOutputTimeFile<<std::endl;
-		// sOutputTimeFileCommand << "rm " << sOutputTimeFile;
-		// std::cout<<"sOutputTimeFileCommand:  "<< sOutputTimeFileCommand.str() <<std::endl;
-		// if (access(sOutputTimeFile.c_str(), F_OK) == 0) {system(sOutputTimeFileCommand.str().c_str());}
-		// sOutputTimeFileCommand.str("");
-		sOutputTimeFileCommand << "touch " << sOutputTimeFile;
-		std::cout<<"sOutputTimeFileCommand(touch):  "<< sOutputTimeFileCommand.str() <<std::endl;
-		system(sOutputTimeFileCommand.str().c_str());
-		outTimeFile.open(sOutputTimeFile,ios_base::trunc);
-
 		m_sFileHead += "sf_";
 	}
 
@@ -157,8 +127,9 @@ bool FrameRecon::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 	//input point cloud topic
 	nodeHandle.param("outcloud_tf_id", m_sOutCloudTFId, std::string("camera_init"));
 
-	//input odom topic
-	nodeHandle.param("polygon_out_topic", m_sOutMeshTopic, std::string("/processed_clouds"));
+	//input mesh topic
+	nodeHandle.param("polygon_out_topic", m_sOutMeshTopic, std::string("/frame_meshs"));
+	nodeHandle.param("mesh_algo_topic", m_sOutMeshAlgoTopic, std::string("/frame_mesh_algo"));
 
 	//input point cloud topic
 	nodeHandle.param("polygon_tf_id", m_sOutMeshTFId, std::string("camera_init"));
@@ -181,10 +152,12 @@ bool FrameRecon::ReadLaunchParams(ros::NodeHandle & nodeHandle) {
 	//number of sectors
 	nodeHandle.param("sector_num", m_iSectorNum, 1);
 	m_oExplicitBuilder.HorizontalSectorSize(m_iSectorNum);
+	m_oMeshAlgoBuilder.HorizontalSectorSize(4);
 
 	bool bMultiThread;
 	nodeHandle.param("multi_thread", bMultiThread, true);
 	m_oExplicitBuilder.SetMultiThread(bMultiThread);
+	m_oMeshAlgoBuilder.SetMultiThread(true);
 
 	//count processed point cloud frame
 	m_iPCFrameCount = 0;
@@ -360,18 +333,14 @@ void FrameRecon::PublishMeshs(){
 	oMeshMsgs.pose.orientation.w = 1.0;
 
 	std_msgs::ColorRGBA color;
-	// color.a = 1.0;
-	// color.r = 200 / 255.f * 1.5f;
-	// color.g = 128 / 255.f * 1.5f;
-	// color.b = 54  / 255.f * 1.5f;
+	color.a = 1.0;
+	color.r = 200 / 255.f * 1.5f;
+	color.g = 128 / 255.f * 1.5f;
+	color.b = 54  / 255.f * 1.5f;
 	
-	// color.r = 248 / 255.f;
-	// color.g = 220 / 255.f;
-	// color.b = 180 / 255.f;
-	color.a = 1;
-	color.r = 1.0;
-	color.g = 1.0;
-	color.b = 1.0;
+	color.r = 248 / 255.f;
+	color.g = 220 / 255.f;
+	color.b = 180 / 255.f;
 
 	//repeatable vertices
 	pcl::PointCloud<pcl::PointXYZI> vMeshVertices;
@@ -395,12 +364,52 @@ void FrameRecon::PublishMeshs(){
 	}//end k
 
 	m_oMeshPublisher.publish(oMeshMsgs);
+}
 
+void FrameRecon::PublishMeshForAlgorithm() {
+
+	fusion_msgs::MeshArray oMeshArray;
+
+	for(int i = 0; i < m_oMeshAlgoBuilder.m_vAllSectorClouds.size(); ++i) {
+		shape_msgs::Mesh mesh;
+		m_oMeshAlgoBuilder.OutputSectorMesh(mesh, i);
+		oMeshArray.data.push_back(mesh);
+	}	
+
+	m_oMeshAlgoPublisher.publish(oMeshArray);
 }
 
 std::ostream& operator<<(std::ostream& out, const sensor_msgs::PointCloud2::_header_type& header) {
 	out << header.frame_id << ", " << header.seq << ", " << header.stamp;
 	return out;
+}
+
+void FrameRecon::PublishFrameRecomMeshs(pcl::PointCloud<pcl::PointXYZI>& pointcloud,const pcl::PointCloud<pcl::PointNormal> & vCloudNormal){
+	fusion_msgs::FrameRecon FrameReconMesh;
+	FrameReconMesh.header.frame_id = m_sOutMeshTFId;
+	FrameReconMesh.header.stamp = ros::Time::now();
+
+	for(int i = 0; i < m_oExplicitBuilder.m_vAllSectorClouds.size(); ++i) {
+		shape_msgs::Mesh mesh;
+		m_oExplicitBuilder.OutputSectorMesh(mesh, i);
+		FrameReconMesh.ReconMesh.push_back(mesh);
+	}
+
+	for(auto && point : pointcloud)
+	{
+		FrameReconMesh.PointRing.push_back(point.intensity);
+	}
+
+	pcl::toROSMsg( vCloudNormal, FrameReconMesh.FramePNormal);
+
+	// pcl::PointCloud<pcl::PointXYZI> CenterPoint;
+	// for (int j = 0; j < m_oExplicitBuilder.m_pCenterNormal->points.size();j++)
+	// {
+	// 	CenterNormal.push_back(m_oExplicitBuilder.m_pCenterNormal->points[j]);
+	// }
+	// pcl::toROSMsg(CenterNormal, FrameReconMesh.CenterPNormal);
+	
+	m_oFrameReconMeshPublisher.publish(FrameReconMesh);
 }
 /*************************************************
 Function: HandleRightLaser
@@ -419,22 +428,22 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 {
 
 	if (!(m_iPCFrameCount % m_iFrameSmpNum)){ //根据帧采样频率记录
-
-		#ifdef DEBUG
-        if(debug){
+		#ifdef FRAMEDEBUG
 		std::cout << "Now frame count is: " << m_iPCFrameCount << ";\t"
-			<< "header is: {" << vLaserData.header << "}";}
+			<< "header is: {" << vLaserData.header << "}";
 		#endif
 		m_iTotalFrameNum = vLaserData.header.seq + 1;
 
-		struct timeval start;
-		gettimeofday(&start, NULL);
+		// struct timeval start;
+		// gettimeofday(&start, NULL);
+		timer.NewLine();
 
 		////a point clouds in PCL type
 		pcl::PointCloud<pcl::PointXYZI>::Ptr pRawCloud(new pcl::PointCloud<pcl::PointXYZI>);
 		////message from ROS type to PCL type
 		pcl::fromROSMsg(vLaserData, *pRawCloud);
 
+		timer.DebugTime("1_transfer_cloud");
 		
 		//if have corresponding trajectory point (viewpoint)
 		pcl::PointXYZI oCurrentViewP;
@@ -442,7 +451,6 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		if (m_vOdomHistory.size() /*&& vLaserData.header.stamp <= m_vOdomHistory.last().oTimeStamp*/){
 			//
 			oCurrentViewP = ComputeQueryTraj(vLaserData.header.stamp);	//当前点云对应的观测位置（Odom与frame并非一一对应，因此需要计算插值）
-
 			// std::cout << "\tView: " << oCurrentViewP;
 		
 		//else waiting for sync
@@ -452,142 +460,18 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 
 			return;
 		}
-
-		// std::cout << "vLaserData.fields.size :  " << vLaserData.fields.size();
-
-
-		if(vLaserData.fields.size() == 6) //velodyne  sensor_msgs::PointCloud2 {point x y z intensity ring time}
-		{
-			int ring;
-			for(int i = 0;i < pRawCloud->points.size();++i)
-			{
-				ring = 0;
-				// std::memcpy(&ring,&vLaserData.data[32*i+20],2);
-				std::memcpy(&ring,&vLaserData.data[22*i+16],2);
-				// std::cout<<ring<<std::endl;
-				pRawCloud->points[i].intensity = ring;
-			}
-		}
-		else if(vLaserData.fields.size() == 10) //velodyne  sensor_msgs::PointCloud2 {point x y z intensity normal_x normal_y normal_z ring time label}
-		{
-			int ring;
-			for(int i = 0;i < pRawCloud->points.size();++i)
-			{
-				ring = 0;
-				// std::memcpy(&ring,&vLaserData.data[32*i+20],2);
-				// &vLaserData.data[point_step*i+offset]
-				std::memcpy(&ring,&vLaserData.data[64*i+48],2);
-				// std::cout<<ring<<std::endl;
-				pRawCloud->points[i].intensity = ring;
-			}
-		}
-		else
-		{
-			int N_SCANS = m_iLidarLineMax - m_iLidarLineMin + 1;
-			#ifdef DEBUG
-        	if(debug){
-			std::cout << ";\tN_SCANS: " << N_SCANS;}
-			#endif
-
-			for(int i = 0;i < pRawCloud->points.size();++i)
-			{
-				float delta_x = pRawCloud->points[i].x - oCurrentViewP.x;
-				float delta_y = pRawCloud->points[i].y - oCurrentViewP.y;
-				float delta_z = pRawCloud->points[i].z - oCurrentViewP.z;
-
-				float angle = atan(delta_z / sqrt(delta_x * delta_x + delta_y * delta_y)) * 180 / M_PI;//-90�ȵ�90��
-				int scanID = 0;
-
-				if (N_SCANS == 16)
-				{
-					scanID = int((angle + 15) / 2 + 0.5);
-					// scanID = 1;
-					if (scanID > (N_SCANS - 1) || scanID < 0)
-					{
-						// count--;
-						continue;
-					}
-				}
-				else if (N_SCANS == 32)
-				{
-					scanID = int((angle + 92.0/3.0) * 3.0 / 4.0);
-					if (scanID > (N_SCANS - 1) || scanID < 0)
-					{
-						// count--;
-						continue;
-					}
-				}
-				else if (N_SCANS == 40)
-				{   
-					// std::cout <<std::endl<< "angle: " << angle;
-					if (angle > 2) // 1~5
-					{
-						if(angle>2 && angle <= 3.5) scanID = 5;
-						else if(angle>3.5 && angle <= 5.5) scanID = 4;
-						else if(angle>5.5 && angle <= 8.5) scanID = 3;
-						else if(angle>8.5 && angle <= 11.5) scanID = 2;
-						else if(angle>11.5 && angle <= 16) scanID = 1;
-					}
-					else if (angle < -6)
-					{
-						if(angle<-6 && angle >= -14) 
-							scanID = 31 + abs(int((angle + 7 ) / 1 - 0.5)) ;
-						else if(angle<-14 && angle >= -19.5) scanID = 39;
-						else if(angle<-19.5 && angle >= -26) scanID = 40;
-					}
-					else if(angle >= -6 && angle <= 2)
-					{
-						scanID = 6 + abs(int((angle - 2 ) / 0.33 - 0.5)) ;
-					}
-				}
-				else if (N_SCANS == 64)
-				{   
-					if (angle >= -8.83)
-						scanID = int((2 - angle) * 3.0 + 0.5);
-					else
-						scanID = N_SCANS / 2 + int((-8.83 - angle) * 2.0 + 0.5);
-					// use [0 50]  > 50 remove outlies 
-					if (angle > 2 || angle < -24.33 || scanID > 50 || scanID < 0)
-					{
-						// count--;
-						continue;
-					}
-				}
-				else
-				{
-					printf("wrong scan number\n");
-					ROS_BREAK();
-				}
-				pRawCloud->points[i].intensity = scanID;
-				// std::cout << "\tscanID: " << scanID ;
-
-			}
-		}
-
-		#ifdef DEBUG
-        	if(debug){
-		    sensor_msgs::PointCloud2 pubCloudData;
-			pcl::toROSMsg(*pRawCloud, pubCloudData);
-			pubCloudData.header.frame_id = m_sOutCloudTFId;
-			pubCloudData.header.stamp = ros::Time::now();
-			debugNPointCloud.publish(pubCloudData);}
+		#ifdef FRAMEDEBUG
+		std::cout << ";\tsize: " << pRawCloud->size();
 		#endif
-		#ifdef DEBUG
-        if(debug){
-			std::cout << ";\tsize: " << pRawCloud->size();}
-		#endif
+		timer.DebugTime("2_get_viewpoint");
 
 		// point sample
 		pcl::PointCloud<pcl::PointXYZI>::Ptr pSceneCloud(new pcl::PointCloud<pcl::PointXYZI>);
 		SamplePoints(*pRawCloud, *pSceneCloud, m_iSampleInPNum);
-		
-		// std::cout<<std::endl;
-		// std::cout<<std::format_red
-		// 				<<"point sample:"
-		// 				<<pSceneCloud->points.size()
-		// 				<<std::format_white<<std::endl;
 
-		 /*TODO: out put raw point cloud
+		timer.DebugTime("3_sample_points");
+		
+		// /*TODO: out put raw point cloud
 		if(m_bOutputFiles) {
 			
 			std::stringstream filename;
@@ -600,49 +484,20 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		}
 		//*/
 
+		timer.DebugTime("4_save_sampled_pc");
+
 		// frame reconstruct
-		struct timeval reconstruct_start;
-		gettimeofday(&reconstruct_start, NULL);
+		// struct timeval reconstruct_start;
+		// gettimeofday(&reconstruct_start, NULL);
 
 		pcl::PointCloud<pcl::PointNormal>::Ptr pFramePNormal(new pcl::PointCloud<pcl::PointNormal>);
-		// std::cout<<std::format_red
-		// 		<<"m_iPCFrameCount:"
-		// 		<<m_iPCFrameCount
-		// 		<<std::endl;
 		m_oExplicitBuilder.setWorkingFrameCount(m_iPCFrameCount);
 		m_oExplicitBuilder.SetViewPoint(oCurrentViewP, m_fViewZOffset);
 		m_oExplicitBuilder.FrameReconstruction(*pSceneCloud, *pFramePNormal, m_iLidarLineMin, m_iLidarLineMax);	//得到带法向的点云
-		// std::cout<<std::format_red
-		// 				<<"pFramePNormal:"
-		// 				<<pFramePNormal->points.size()
-		// 				<<std::format_white<<std::endl;
-		struct timeval reconstruct_end;
-		gettimeofday(&reconstruct_end,NULL);
-		double parallel_time = (reconstruct_end.tv_sec - reconstruct_start.tv_sec) * 1000.0 +(reconstruct_end.tv_usec - reconstruct_start.tv_usec) * 0.001;
-		#ifdef DEBUG
-        if(debug){
-		std::cout << "\trecon_time:" << parallel_time << "ms";}
-		#endif
 
-		//************output value******************
-		// for(int i=0;i!=pFramePNormal->points.size();++i)
-		// 	m_vMapPCN.points.push_back(pFramePNormal->points[i]);
-		
-
-
-		//************additional points**************
-        pcl::PointCloud<pcl::PointNormal> vAdditionalPoints;
-        pcl::PointCloud<pcl::PointXYZI> vDisplayAdditionalPoints;
-		for(int i = 0; i < m_oExplicitBuilder.m_vAllSectorClouds.size(); ++i) {
-			MeshSample::GetAdditionalPointCloud(
-				*(m_oExplicitBuilder.m_vAllSectorClouds[i]) , m_oExplicitBuilder.m_vAllSectorFaces[i], 
-				m_oExplicitBuilder.m_vFaceWeight[i], m_oExplicitBuilder.m_vMatNormal[i],
-				vAdditionalPoints, vDisplayAdditionalPoints
-			);
-		}
-
-		// publish time
-		PublishPointCloud(vDisplayAdditionalPoints, m_oAdditionalPointPublisher);
+		m_oMeshAlgoBuilder.setWorkingFrameCount(m_iPCFrameCount);
+		m_oMeshAlgoBuilder.SetViewPoint(oCurrentViewP, m_fViewZOffset);
+		m_oMeshAlgoBuilder.OriginalReconstruction(*pSceneCloud);
 
 		// 添加中心视点，方便多帧进程识别
 		pcl::PointNormal oViewPoint;
@@ -651,17 +506,49 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 		oViewPoint.z = oCurrentViewP.z;
 		oViewPoint.curvature = -1;      //识别码
 		pFramePNormal->push_back(oViewPoint);
-		vAdditionalPoints.push_back(oViewPoint);
 
-		// *pFramePNormal += vAdditionalPoints;
-        vAdditionalPoints.is_dense = false;
-        PublishPointCloud(vAdditionalPoints, m_oCloudPublisher);
-
-		PublishMeshs();	//发布 m_oExplicitBuilder 中建立的 mesh
+		double parallel_time = timer.DebugTime("5_main_reconstruction");
+		#ifdef FRAMEDEBUG
+		std::cout << "\trecon_time:" << parallel_time << "ms";
+		#endif
+		//************output value******************
+		// for(int i=0;i!=pFramePNormal->points.size();++i)
+		// 	m_vMapPCN.points.push_back(pFramePNormal->points[i]);
 		
-		///* output mesh file:
-		if(m_bOutputFiles) {
 
+		// publish
+		PublishMeshs();	//发布 m_oExplicitBuilder 中建立的 mesh
+		PublishMeshForAlgorithm();
+		PublishPointCloud(*pFramePNormal);
+		PublishFrameRecomMeshs(*pSceneCloud, *pFramePNormal);
+
+		timer.DebugTime("6_publish");
+
+
+		///************additional points**************
+        // pcl::PointCloud<pcl::PointNormal> vAdditionalPoints;
+        // pcl::PointCloud<pcl::PointXYZI> vDisplayAdditionalPoints;
+		// for(int i = 0; i < m_oExplicitBuilder.m_vAllSectorClouds.size(); ++i) {
+		// 	MeshSample::GetAdditionalPointCloud(
+		// 		*(m_oExplicitBuilder.m_vAllSectorClouds[i]) , m_oExplicitBuilder.m_vAllSectorFaces[i], 
+		// 		m_oExplicitBuilder.m_vFaceWeight[i], m_oExplicitBuilder.m_vMatNormal[i],
+		// 		vAdditionalPoints, vDisplayAdditionalPoints
+		// 	);
+		// }
+		// PublishPointCloud(vDisplayAdditionalPoints, m_oAdditionalPointPublisher);
+		// vAdditionalPoints.push_back(oViewPoint);
+        // vAdditionalPoints.is_dense = false;
+        // PublishPointCloud(vAdditionalPoints, m_oCloudPublisher);
+		// timer.DebugTime("additional_point");
+		//*/
+
+		///* output 
+		if(m_bOutputFiles) {
+			// output normaled pc
+			std::stringstream sPcOutputPath;
+			sPcOutputPath << m_sFileHead << std::setw(4) << std::setfill('0') << m_iReconstructFrameNum << "_npc.ply";
+			
+			// output mesh
 			pcl::PolygonMesh oFullMesh;
 			pcl::PointCloud<pcl::PointXYZI> vFullCloud;
 			for(int sector_index = 0; sector_index < m_oExplicitBuilder.m_vAllSectorClouds.size(); ++sector_index) {
@@ -685,26 +572,18 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 			}
 			pcl::toPCLPointCloud2(vFullCloud, oFullMesh.cloud);
 			
-			std::stringstream sOutputPath;
-			sOutputPath << m_sFileHead << std::setw(4) << std::setfill('0') << m_iReconstructFrameNum << "_mesh.ply";
+			std::stringstream sMeshOutputPath;
+			sMeshOutputPath << m_sFileHead << std::setw(4) << std::setfill('0') << m_iReconstructFrameNum << "_mesh.ply";
 
-			std::thread tOutputThread([=](string path){
-				pcl::io::savePLYFileBinary(path, oFullMesh); 
-			}, sOutputPath.str());
+			std::thread tOutputThread([=](string pc_path, string mesh_path){
+				pcl::io::savePLYFileBinary(pc_path, *pFramePNormal);
+				pcl::io::savePLYFileBinary(mesh_path, oFullMesh); 
+			}, sPcOutputPath.str(), sMeshOutputPath.str());
 
 			tOutputThread.detach();
+			timer.DebugTime("7_output_file");
 		}
 		
-		//*/
-
-		PublishPointCloud(*pFramePNormal);
-
-		/*output the points and normals
-		{
-			std::stringstream ss;
-			ss << "../Dense_ROS/save/FramePNormal_" << m_iPCFrameCount << ".ply";
-			pcl::io::savePLYFileASCII(ss.str(), *pFramePNormal);
-		}
 		//*/
 
 		//clear this frame result
@@ -712,14 +591,11 @@ void FrameRecon::HandlePointClouds(const sensor_msgs::PointCloud2 & vLaserData)
 
 
 		//结束算法计时并记录执行时间
-		struct timeval end;
-		gettimeofday(&end,NULL);
-		double frame_reconstruct_time = (end.tv_sec - start.tv_sec) * 1000.0 +(end.tv_usec - start.tv_usec) * 0.001;
-		#ifdef DEBUG
-        if(debug){
-		std::cout << ";\tframe_time:" << frame_reconstruct_time << "ms" << std::endl;}
+		timer.DebugTime("8_clear_data");
+		double frame_reconstruct_time = timer.GetCurrentLineTime();
+		#ifdef FRAMEDEBUG
+		std::cout << ";\tframe_time:" << frame_reconstruct_time << "ms" << std::endl;
 		#endif
-		outTimeFile<<"sf_"<< std::setw(4) << std::setfill('0') << m_iReconstructFrameNum<<"_mesh "<<frame_reconstruct_time<<"ms\n";
 		m_dAverageReconstructTime += frame_reconstruct_time;
 		m_dMaxReconstructTime = frame_reconstruct_time > m_dMaxReconstructTime ? frame_reconstruct_time : m_dMaxReconstructTime;
 		++m_iReconstructFrameNum;
@@ -749,12 +625,11 @@ Others: none
 *************************************************/	
 void FrameRecon::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
 {
- #ifdef DEBUG
-    if(debug){
+	#ifdef FRAMEDEBUG
 	std::cout << std::format_yellow << "Now Odome count is: " << m_iTrajCount << ";\t"
 		<< "header is: {" << oTrajectory.header << "}" << "\tPose: (" << oTrajectory.pose.pose.position.x << ","
-		<< oTrajectory.pose.pose.position.y << "," << oTrajectory.pose.pose.position.z << ")" << std::format_white << std::endl;}
-#endif
+		<< oTrajectory.pose.pose.position.y << "," << oTrajectory.pose.pose.position.z << ")" << std::format_white << std::endl;
+	#endif
 	//count input frames
 	//m_iTrajPointNum++;
 
@@ -791,14 +666,6 @@ void FrameRecon::HandleTrajectory(const nav_msgs::Odometry & oTrajectory)
 	m_vOdomHistory.push(oOdomPoint);
 
 	m_iTrajCount++;
-
-#ifdef DEBUG
-    if(debug){
-	nav_msgs::Odometry testOdometry;
-	testOdometry = oTrajectory;
-	// testOdometry.pose.pose.position.z = testOdometry.pose.pose.position.z;
-	debugSubOdome.publish(testOdometry);}
-#endif
 }
 
 /*************************************************
@@ -949,7 +816,9 @@ void FrameRecon::OutputPCFile(const pcl::PointCloud<pcl::PointXYZI> & vCloud, bo
 		m_bOutPCFileFlag = false;
 
         //print output file generation message
+		#ifdef FRAMEDEBUG
 		std::cout << "[*] Attention, a point cloud recording file is created in " << m_sOutPCFileName.str() << std::endl;
+		#endif
 	}
 
     //output
@@ -1003,7 +872,9 @@ void FrameRecon::OutputPCFile(const pcl::PointCloud<pcl::PointXYZI> & vCloud, co
 		m_bOutPCFileFlag = false;
 
         //print output file generation message
+		#ifdef FRAMEDEBUG
 		std::cout << "[*] Attention, a point cloud recording file is created in " << m_sOutPCFileName.str() << std::endl;
+		#endif
 	}
 
     //output

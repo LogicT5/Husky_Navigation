@@ -1,15 +1,19 @@
 #ifndef EXPLICITREC_H
 #define EXPLICITREC_H
+
 #include "GHPR.h"
 #include "SectorPartition.h"
 #include "MeshOperation.h"
+
+#include <shape_msgs/Mesh.h>
+
 #define PI 3.1415926
 
 class ExplicitRecParam{
 
 public:
-	// 伪面剔除阈值m_fPseudoFaceThr 
-	ExplicitRecParam() :m_GHPRParam(3.6), m_fPseudoFaceThr(0.05), m_iSectorMinPNum(5){
+
+	ExplicitRecParam() :m_GHPRParam(3.6), m_fPseudoFaceThr(0.02), m_iSectorMinPNum(5){
 
 
 	};
@@ -60,12 +64,15 @@ public:
 		                   std::vector<bool> & vTrueFaceStatus, std::vector<float> & vFaceWeight);
 	void RemovePseudoFacesAndComputeCenterPoint(const pcl::PointCloud<pcl::PointXYZI> &vSectorPoints, pcl::PointCloud<pcl::PointXYZI> &vCenterPoints, const std::vector<pcl::Vertices> &vFaces, const Eigen::MatrixXf &oMatNormal,
 												std::vector<bool> &vTrueFaceStatus, std::vector<float> &vFaceWeight);
-
-	//reconstruction of one frame scanning point cloud and ouput mesh normal
+	// reconstruction of one frame scanning point cloud and ouput mesh normal
 	void FrameReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vSceneCloud, pcl::PointCloud<pcl::PointNormal> & vScenePNormal, const int line_min = 0, const int line_max = 15);
+	void OriginalReconstruction(const pcl::PointCloud<pcl::PointXYZI> & vSceneCloud);
 
 	//combine and output all vertices
 	void OutputAllMeshes(pcl::PolygonMesh & MeshModel);
+	//output shape_msg/Mesh for alogrithm
+	void OutputSectorMesh(shape_msgs::Mesh & MeshModel, int sectorId);
+	void OutputAllMeshes(shape_msgs::Mesh & mesh);
 	//reload, output all vertices in a point repeatable way using three-point arrangement
 	void OutputAllMeshes(pcl::PointCloud<pcl::PointXYZI> & vCloud);
 

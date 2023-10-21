@@ -10,16 +10,18 @@
 #include <geometry_msgs/PointStamped.h>
 
 //pcl related
-#include <pcl_ros/transforms.h>
+#include "pcl_ros/transforms.h"  
+
 #include <pcl/io/pcd_io.h>         
 #include <pcl/io/ply_io.h>         
 #include <pcl/point_types.h> 
 #include <pcl_conversions/pcl_conversions.h>
 
 //polygon related
-
 #include <visualization_msgs/Marker.h>
-
+#include <shape_msgs/Mesh.h>
+#include <fusion_msgs/MeshArray.h>
+#include <fusion_msgs/FrameRecon.h>
 
 //project related
 #include "GHPR.h"
@@ -27,6 +29,7 @@
 #include "ExplicitRec.h"
 #include "CircularVector.h"
 #include "MeshSample.h"
+#include "tools/DebugManager.h"
 
 // Trajectory state data. 
 struct RosTimePoint{
@@ -64,7 +67,7 @@ struct RosTimePoint{
 class FrameRecon{
 
  public:
-  bool debug;
+
   //*************Initialization function*************
   //Constructor
   FrameRecon(ros::NodeHandle & node,
@@ -96,11 +99,14 @@ class FrameRecon{
    //reload, publish point clouds with labels
   void PublishPointCloud(const pcl::PointCloud<pcl::PointNormal> & vCloudNormal);
 
+  void PublishFrameRecomMeshs(pcl::PointCloud<pcl::PointXYZI> &pointcloud, const pcl::PointCloud<pcl::PointNormal> &vCloudNormal);
+
   template<class T>
   void PublishPointCloud(pcl::PointCloud<T>& pointcloud, ros::Publisher& publisher);
 
   //publish meshes
   void PublishMeshs();
+  void PublishMeshForAlgorithm();
 
   //*******odom related*******
   //Trajectory line interpolation
@@ -130,9 +136,6 @@ class FrameRecon{
   
   //ouput file
   std::ofstream m_oOutPCFile;
-
-  //output point cloud with normal
-  std::stringstream m_sOutPCNormalFileName; 
 
   //***for input odom topic***
   //the m_oOdomSuber subscirber is to hearinput  odometry topic
@@ -165,6 +168,12 @@ class FrameRecon{
   //polygon publisher for test
   ros::Publisher m_oMeshPublisher;
 
+  std::string m_sOutMeshAlgoTopic;
+  ros::Publisher m_oMeshAlgoPublisher;
+
+  ros::Publisher m_oFrameReconMeshPublisher;
+
+
   //displayed point topic
   std::string m_sAdditionalPointTopic = "/additional_points";
   ros::Publisher m_oAdditionalPointPublisher;
@@ -188,6 +197,7 @@ class FrameRecon{
   
   //explicit reconstruction
   ExplicitRec m_oExplicitBuilder;
+  ExplicitRec m_oMeshAlgoBuilder;
 
   //circle vector of odom
   CircularVector<RosTimePoint> m_vOdomHistory;
@@ -218,12 +228,7 @@ class FrameRecon{
   
   bool m_bOutputFiles;
 
-  std::ofstream outTimeFile;
-
-#ifdef DEBUG
-ros::Publisher debugSubOdome;
-ros::Publisher debugNPointCloud;
-#endif
+  TimeDebugger timer;
 };
 
 std::ostream& operator<<(std::ostream& out, const sensor_msgs::PointCloud2::_header_type& header);

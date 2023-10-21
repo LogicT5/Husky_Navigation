@@ -12,6 +12,7 @@ husky_lio_sam:
 
   # Frames
   # lidarFrame: "base_link"
+  imuFrame: "imu_link"
   lidarFrame: "lidar_sensor_VLP16"
   baselinkFrame: "base_link"
   odometryFrame: "odom"

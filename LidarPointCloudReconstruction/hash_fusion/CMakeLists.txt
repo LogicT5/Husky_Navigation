@@ -21,33 +21,13 @@ find_package(catkin REQUIRED COMPONENTS
              nav_msgs
              tf
              filters
-             message_generation 
-)
-
-add_service_files(
-  DIRECTORY srv
-  FILES
-  multi_recon.srv
-)
-
-generate_messages(
-  DEPENDENCIES
-  sensor_msgs
+             fusion_msgs
 )
 
 catkin_package(
 #  INCLUDE_DIRS include
- LIBRARIES record_odomlaser
- CATKIN_DEPENDS 
-    pcl_ros 
-    roscpp 
-    rospy 
-    sensor_msgs 
-    std_msgs 
-    nav_msgs
-    tf
-    message_runtime
-    # message_generation
+#  LIBRARIES record_odomlaser
+#  CATKIN_DEPENDS pcl_ros roscpp rospy sensor_msgs std_msgs tf
 #  DEPENDS system_lib
 )
 
@@ -61,9 +41,12 @@ include_directories(
 
 aux_source_directory(src DIR_SRCS)
 aux_source_directory(src/tools DIR_SRCS)
+aux_source_directory(src/volume DIR_SRCS)
+aux_source_directory(src/updater DIR_SRCS)
 
 ###### build ########
 add_executable(hash_fusion ${DIR_SRCS})
 
+target_include_directories(hash_fusion PUBLIC src)
 
 target_link_libraries(hash_fusion ${catkin_LIBRARIES} ${PCL_LIBRARIES})

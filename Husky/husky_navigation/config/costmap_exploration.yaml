@@ -1,5 +1,5 @@
 track_unknown_space: true
-global_frame: base_link_map
+global_frame: map
 rolling_window: false
 
 plugins: 

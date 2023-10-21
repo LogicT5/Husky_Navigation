@@ -20,13 +20,13 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
     <arg name="mf_output_path" default="" />
 
-    <arg name="cloud_in_topic" default="/frame_cloudnormals" />
+    <arg name="mesh_in_topic" default="/frame_mesh_algo" />
 
     <!-- use slam transfer -->
-    <arg name="odom_in_topic" default="/odom_lidar" />
+    <!-- <arg name="odom_in_topic" default="/slam_odom" /> -->
 
     <!-- aloam -->
-    <!-- <arg name="odom_in_topic" default="/aft_mapped_to_init" /> -->
+    <arg name="odom_in_topic" default="/aft_mapped_to_init" />
 
     <arg name="cloud_out_opic" default="/processed_clouds" />
     <arg name="polygon_out_opic" default="/surrounding_meshes" />
@@ -34,26 +34,39 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
     <arg name="async_reconstruct" default="true"/>
     <arg name="additional_points" default="false"/>
 
-    <arg name="out_cloud_tf_id" default="odom"/>
-    <arg name="polygon_tf_id" default="odom"/>
+    <arg name="out_cloud_tf_id" default="map"/>
+    <arg name="polygon_tf_id" default="map"/>
 
-    <arg name="sample_pc_frame_num"  default="2" />
+    <arg name="sample_pc_frame_num"  default="1" />
 
     <arg name="sample_inp_num"  default="1" />
 
-    <arg name="voxel_cube_size" default="0.20"/> 
+    <arg name="voxel_cube_size" default="0.4"/> 
 
-    <arg name="voxel_total_size" default="30.0"/> 
+    <arg name="voxel_total_size" default="160.0"/> 
 
     <arg name="mesh_u_period" default="2.0"/> 
 
+    <!-- volume config -->
+    <!-- volume type 
+        0 - hash voxeler
+        1 - hash block
+    -->
+    <arg name="volume_type" default="1" />
+
     <!-- dynamic control -->
     <arg name="use_surfel_fusion"   default="true"/>
-    <arg name="strategy_type"       default="1"/>
-    <arg name="use_union_set"       default="true"/>
+    <arg name="strategy_type"       default="2"/>
+    <!-- union set -->
+    <arg name="use_union_set"       default="false"/>
     <arg name="only_max_union_set"  default="false"/>
+    <arg name="strict_dot_ref"      default="0.95"/>
+    <arg name="soft_dot_ref"        default="0.3"/>
+    <arg name="remove_size_ref"     default="100"/>
+    <arg name="remove_time_ref"     default="10.0"/>
+    <arg name="confidence_level_length" default="3"/>
 
-    <!-- fusion mode:
+    <!-- fusion mode:(not use)
         0 - normal fusion 
         1 - multi-resolution fusion
         2 - pre-conv fusion
@@ -64,8 +77,13 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
     <!-- meshing params -->
     <arg name="keep_time" default="-1" />
     <arg name="conv_dim" default="3" />
-    <arg name="conv_add_point_ref" default="4" />
+    <arg name="conv_add_point_ref" default="3" />
     <arg name="conv_distance_ref" default="0.95" />
+
+    <arg name="center_based_recon" default="false" />
+    <arg name="dynamic_debug" default="false" />
+    <arg name="keep_voxel" default="true" />
+    <arg name="recon_range" default="80.0" /> <!-- 80 for show -->
     
 
     <!-- frames_fusion node in frames_fusion pkg-->
@@ -76,7 +94,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
         <param name="file_output_path" type="string" value="$(arg mf_output_path)"  />
 
         <!-- define input topic name-->
-        <param name="cloud_in_topic" type="string" value="$(arg cloud_in_topic)"  />
+        <param name="mesh_in_topic" type="string" value="$(arg mesh_in_topic)"  />
 
         <param name="odom_in_topic" type="string" value="$(arg odom_in_topic)" />
 
@@ -97,6 +115,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
         <param name="voxel_total_size"  type="double" value="$(arg voxel_total_size)" />
 
         <param name="strategy_type" type="int" value="$(arg strategy_type)" />
+
+        <param name="volume_type" type="int" value="$(arg volume_type)" />
 
         <!-- mesh related-->
 
@@ -122,13 +142,22 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
         <param name="conv_add_point_ref" type="int" value="$(arg conv_add_point_ref)" />
 
         <param name="conv_distance_ref" type="double" value="$(arg conv_distance_ref)" />
+        <param name="recon_range" type="double" value="$(arg recon_range)" />
+        <param name="dynamic_debug" type="bool" value="$(arg dynamic_debug)" />
+        <param name="keep_voxel" type="bool" value="$(arg keep_voxel)" />
         
         <!-- dynamic judge params-->
         <param name="use_union_set" type="bool" value="$(arg use_union_set)" />
         <param name="only_max_union_set" type="bool" value="$(arg only_max_union_set)" />
+        <param name="strict_dot_ref" type="double" value="$(arg strict_dot_ref)" />
+        <param name="soft_dot_ref" type="double" value="$(arg soft_dot_ref)" />
+        <param name="remove_size_ref" type="int" value="$(arg remove_size_ref)" />
+        <param name="remove_time_ref" type="double" value="$(arg remove_time_ref)" />
+        <param name="confidence_level_length" type="double" value="$(arg confidence_level_length)" />
 
         <!-- multi_resolution -->
         <param name="fusion_mode" type="int" value="$(arg fusion_mode)"/>
+        <param name="center_based_recon" type="bool" value="$(arg center_based_recon)"/>
         <param name="expand_distribution_ref" type="double" value="$(arg expand_distribution_ref)"/>
     </node>
 

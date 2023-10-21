@@ -17,11 +17,11 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 -->
 
 <launch>
-    <!-- <arg name="rosbag" default="$(find frame_reconstruction)/../data/nsh_indoor_outdoor.bag" /> -->
-    <!-- <arg name="gtpos" default="$(find frame_reconstruction)/../data/nsh_indoor_outdoor_pos.txt" /> -->
-
-    <arg name="rosbag" default="$(find debug_tools)/rosbag/underground_garage_exit.bag" />
-    <arg name="gtpos" default="$(find gt_trans)/gt_pose/ourDataset/underground_garage_exit_poses_kitti.txt" />
+    <arg name="rosbag" default="$(find frame_reconstruction)/../data/nsh_indoor_outdoor.bag" />
+    <arg name="gtpos" default="$(find frame_reconstruction)/../data/nsh_indoor_outdoor_pos.txt" />
+    <arg name="jump" default="0" />
+    <arg name="sample" default="1" />
+    <arg name="delay" default="1.0" />
 
     <!-- output evaluation files (point cloud and mesh )-->
     <arg name="sf_output_path" default=""/>
@@ -29,12 +29,15 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
     <arg name="mf_output_path" default=""/>
 
     <!--Use simulated time to prevent the public time of the TF structure from being unable to match with other messages-->
-    <!-- <param name="use_sim_time" value="true"/> -->
+    <param name="use_sim_time" value="true"/>
 
     <!-- use eval node -->
     <include file="$(find aloam_velodyne)/launch/eval_velodyne.launch" >
         <arg name="eval_pose_file" value="$(arg gtpos)" />
         <arg name="bag_file" value="$(arg rosbag)" />
+        <arg name="jump_frame" value="$(arg jump)" />
+        <arg name="publish_delay" value="$(arg delay)" />
+        <arg name="sample_frame" value="$(arg sample)" />
     </include>
     <!-- <node pkg="tf" type="static_transform_publisher" name="camera_init_to_map"  args="0 0 0 0 0 0 /map /camera_init 10" /> -->
 
@@ -42,17 +45,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
     <include file="$(find slam_trans)/launch/SLAM_to_map.launch"/>
 
     <!-- launch frame reconstruction-->
-    <include file="$(find simple_frame)/launch/reconstruction.launch">
-        <arg name="cloudintopic" default="/slam_points" />
-        <arg name="odomintopic" default="/odom_lidar" />
-
-        <!-- <arg name="outcloudtfid" default="map"/>
-
-        <arg name="polygontfid" default="map"/> -->
-
-        <arg name="lidar_line_min" default="1"/>
-        <arg name="lidar_line_max" default="40"/>
-    </include>
+    <include file="$(find simple_frame)/launch/reconstruction.launch"/>
 
     <!-- launch frame fusion-->
     <include file="$(find hash_fusion)/launch/fusion.launch" >

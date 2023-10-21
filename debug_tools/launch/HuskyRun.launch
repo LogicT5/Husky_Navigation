@@ -14,7 +14,7 @@
   </include>
 
   <include file="$(find husky_gazebo)/launch/spawn_husky.launch">
-    <arg name="enable_ekf"  value="false"/>
+    <!-- <arg name="enable_ekf"  value="false"/> -->
   </include>
 
   <!-- <include file="$(find husky_viz)/launch/view_husky.launch">
@@ -45,8 +45,9 @@
 
   <!-- launch frame reconstruction-->
   <include file="$(find simple_frame)/launch/reconstruction.launch">
-    <arg name="cloudintopic" default="/husky_lio_sam/mapping/cloud_registered_raw" />
-    <arg name="odomintopic" default="/husky_lio_sam/mapping/odometry" />
+    <arg name="cloudintopic" default="/husky_lio_sam/secial_output/SingleFramePoints"/>
+    <!-- <arg name="cloudintopic" default="/husky_lio_sam/secial_output/SingleFrame"/> -->
+    <arg name="odomintopic" default="/husky_lio_sam/secial_output/SingleFrameOdom" />
     <arg name="lidar_line_min" default="0"/>
     <arg name="lidar_line_max" default="15"/>
     <!-- <arg name="sf_output_path" default="/home/vcc/Dense_ROS/$(arg WorldName)/sf_output/"/> -->
@@ -54,8 +55,8 @@
 
   <!-- launch frame fusion-->
   <include file="$(find hash_fusion)/launch/fusion.launch">
-      <arg name="cloud_in_topic" default="/frame_cloudnormals" />
-      <arg name="odom_in_topic" default="/husky_lio_sam/mapping/odometry" />
+      <arg name="mesh_in_topic" default="/frame_mesh_algo" />
+      <arg name="odom_in_topic" default="/husky_lio_sam/secial_output/SingleFrameOdom" />
       <!-- <arg name="mf_output_path" default="/home/vcc/Dense_ROS/$(arg WorldName)/mf_output/"/> -->
   </include>
 

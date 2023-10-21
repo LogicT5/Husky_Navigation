@@ -37,11 +37,13 @@
 #include "function_utility.h"
 #include "husky_lio_sam/cloud_info.h"
 //frame recon
-#include "GHPR.h"
-#include "SectorPartition.h"
-#include "ExplicitRec.h"
-#include "CircularVector.h"
-#include "MeshSample.h"
+// #include "frame_recon/FrameRecon.h"
+// #include "FrameRecon.h"
+// #include "GHPR.h"
+// #include "SectorPartition.h"
+// #include "ExplicitRec.h"
+// #include "CircularVector.h"
+// #include "MeshSample.h"
 
 
 // ###############雷达数据类型 START########################
@@ -156,7 +158,7 @@ private:
     pcl::PointCloud<PointXYZIRT>::Ptr laserCloudIn;           // 当前帧原始激光点云
     pcl::PointCloud<OusterPointXYZIRT>::Ptr tmpOusterCloudIn; // Ouster雷达数据类型：
     pcl::PointCloud<MulranPointXYZIRT>::Ptr tmpMulranCloudIn; // Mulran数据类型：
-    pcl::PointCloud<pcl::PointXYZI>::Ptr reconRawCloud;
+    // pcl::PointCloud<pcl::PointXYZI>::Ptr reconRawCloud;
     pcl::PointCloud<pcl::PointNormal>::Ptr FramePNormal;
     pcl::PointCloud<PointType>::Ptr fullCloud; // 从fullCloud中提取有效点
                                                                         // if(featureExtracted)
@@ -179,6 +181,9 @@ private:
     std_msgs::Header cloudHeader;  // 当前雷达帧的Header
 
     vector<int> columnIdnCountVec; // ？？？
+    
+    tf::StampedTransform lidar2Baselink;
+    Eigen::Matrix4d Lidar2BaselinkTF4d;
 
 public:
     ImageProjection() : deskewFlag(0)
@@ -192,6 +197,33 @@ public:
         // 发布Topic
         pubExtractedCloud = nh.advertise<sensor_msgs::PointCloud2>("husky_lio_sam/deskew/cloud_deskewed", 1);
         pubLaserCloudInfo = nh.advertise<husky_lio_sam::cloud_info>("husky_lio_sam/deskew/cloud_info", 1);
+
+        if(lidarFrame != baselinkFrame)
+        {
+            tf::TransformListener tfListener;
+            try
+            {
+                // 等待3s
+                tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time::now(), ros::Duration(3.0));
+                // lidar系到baselink系的变换
+                tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time::now(), lidar2Baselink);
+                tf::Vector3 translation = lidar2Baselink.inverse().getOrigin();
+                tf::Quaternion rotation = lidar2Baselink.inverse().getRotation();
+
+                // 将位移和旋转转换为Eigen类型
+                Eigen::Vector3d translation_eigen(translation.x(), translation.y(), translation.z());
+                Eigen::Quaterniond rotation_eigen(rotation.w(), rotation.x(), rotation.y(), rotation.z());
+
+                // 创建变换矩阵
+                Lidar2BaselinkTF4d.block<3, 3>(0, 0) = rotation_eigen.toRotationMatrix();
+                Lidar2BaselinkTF4d.block<3, 1>(0, 3) = translation_eigen;
+
+            }
+            catch (tf::TransformException ex)
+            {
+                ROS_ERROR("%s",ex.what());
+            }
+        }
 
         // 初始化
         allocateMemory();
@@ -209,14 +241,14 @@ public:
         tmpOusterCloudIn.reset(new pcl::PointCloud<OusterPointXYZIRT>());
         tmpMulranCloudIn.reset(new pcl::PointCloud<MulranPointXYZIRT>());
         fullCloud.reset(new pcl::PointCloud<PointType>());
-        reconRawCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
+        // reconRawCloud.reset(new pcl::PointCloud<pcl::PointXYZI>);
         FramePNormal.reset(new pcl::PointCloud<pcl::PointNormal>);
         if (featureExtracted)
         {
             extractedCloud.reset(new pcl::PointCloud<PointType>());
 
             fullCloud->points.resize(N_SCAN * Horizon_SCAN);
-            reconRawCloud->points.resize(N_SCAN * Horizon_SCAN);
+            // reconRawCloud->points.resize(N_SCAN * Horizon_SCAN);
 
             cloudInfo.startRingIndex.assign(N_SCAN, 0);
             cloudInfo.endRingIndex.assign(N_SCAN, 0);
@@ -300,28 +332,28 @@ public:
     {
         // 添加点云数据，提取最早帧
         if (!cachePointCloud(laserCloudMsg)) //检查点云数据的有效性
-            {
-                ///*Debug
-                #ifdef DEBUG
-                if(debug){
-                std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cloudHandler" << std::endl;
-                std::cout << "\033[1;35m" << " cachePointCloud(laserCloudMsg)  return :  "<< "\033[1;36m"<< std::endl;
-                std::cout << "\033[0m" << std::endl;}
-                #endif//*/
-                return;
-            }
+        {
+            ///*Debug
+            #ifdef DEBUG
+            if(debug){
+            std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cloudHandler" << std::endl;
+            std::cout << "\033[1;35m" << " cachePointCloud(laserCloudMsg)  return :  "<< "\033[1;36m"<< std::endl;
+            std::cout << "\033[0m" << std::endl;}
+            #endif//*/
+            return;
+        }
 
         if (!deskewInfo())
-            {
-                ///*Debug
-                #ifdef DEBUG
-                if(debug){
-                std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cloudHandler" << std::endl;
-                std::cout << "\033[1;35m" << " deskewInfo()  return :  "<< "\033[1;36m"<< std::endl;
-                std::cout << "\033[0m" << std::endl;}
-                #endif//*/
-                return;
-            }
+        {
+            ///*Debug
+            #ifdef DEBUG
+            if(debug){
+            std::cout << "\033[1;31m" << "[ H-LIO-SAM DEBUG ] " << "\033[1;33m" << "ImageProjection-cloudHandler" << std::endl;
+            std::cout << "\033[1;35m" << " deskewInfo()  return :  "<< "\033[1;36m"<< std::endl;
+            std::cout << "\033[0m" << std::endl;}
+            #endif//*/
+            return;
+        }
 
         projectPointCloud();
 
@@ -372,7 +404,7 @@ public:
                 dst.z = src.z;
                 dst.intensity = 1;
                 int scanID = 0;
-                float angle = atan(dst.z / sqrt(dst.x * dst.x + dst.y * dst.y)) * 180 / M_PI; //-90�ȵ�90��
+                float angle = atan(dst.z / sqrt(dst.x * dst.x + dst.y * dst.y)) * 180 / M_PI; //-90度到90度之间
                 if (angle > 2)                                                                // 1~5
                 {
                     if (angle > 2 && angle <= 3.5)
@@ -473,6 +505,15 @@ public:
         std::cout << "\033[1;35m" << "laserCloudIn size: "        << "\033[1;36m" << laserCloudIn->points.size()   << std::endl;
         std::cout << "\033[0m";}
         #endif //*/
+
+        if (lidarFrame != baselinkFrame)
+        {
+            // Eigen::Affine3f Lidar2BaselinkTF3f;
+            // Lidar2BaselinkTF3f.matrix() = Lidar2BaselinkTF4d.cast<float>();
+            // pcl::transformPoint(oOdomPoint, Lidar2BaselinkTF3f);
+            pcl::transformPointCloud(*laserCloudIn, *laserCloudIn, Lidar2BaselinkTF4d);
+
+        }
 
         // get timestamp
         cloudHeader = currentCloudMsg.header;                         // 当前帧头部
@@ -869,12 +910,6 @@ public:
             thisPoint.ring = laserCloudIn->points[i].ring;
             thisPoint.intensity = laserCloudIn->points[i].intensity;
 
-            pcl::PointXYZI reconPoint;
-            reconPoint.x = laserCloudIn->points[i].x;
-            reconPoint.y = laserCloudIn->points[i].y;
-            reconPoint.z = laserCloudIn->points[i].z;
-            reconPoint.intensity = laserCloudIn->points[i].ring;
-
             // 距离检查
             float range = pointDistance(thisPoint);
             if (range < lidarMinRange || range > lidarMaxRange)
@@ -909,7 +944,6 @@ public:
                     // 转换成一维索引，存校正之后的激光点
                     int index = columnIdn + rowIdn * Horizon_SCAN;
                     fullCloud->points[index] = thisPoint;
-                    reconRawCloud->points[index] = reconPoint;
                 }
                 else
                 {
@@ -948,7 +982,6 @@ public:
                     // 转换成一维索引，存校正之后的激光点
                     int index = columnIdn + rowIdn * Horizon_SCAN;
                     fullCloud->points[index] = thisPoint;
-                    reconRawCloud->points[index] = reconPoint;
 
                 }
             }
@@ -958,7 +991,6 @@ public:
                     continue;
                 thisPoint = deskewPoint(&thisPoint, laserCloudIn->points[i].time);
                 fullCloud->push_back(thisPoint);
-                reconRawCloud->push_back(reconPoint);
             }
         }
         // FrameRcone
@@ -968,51 +1000,54 @@ public:
         // m_oExplicitBuilder.HorizontalSectorSize(12);
 	    // m_oExplicitBuilder.SetMultiThread(true);
 
-        // pcl::PointXYZI oCurrentViewP;
+        // pcl::PointXYZ oCurrentViewP;
         // oCurrentViewP.x = 0.0;
         // oCurrentViewP.y = 0.0;
-        // oCurrentViewP.z = 0.0;
-        // m_oExplicitBuilder.SetMultiThread(true);
+        // oCurrentViewP.z = 0.586;
+
+        // SingleFrameRecon sFrameRecon;
+        // sFrameRecon.setViewPoint(oCurrentViewP);
+        // sFrameRecon.FrameRecon(fullCloud);
+        // sFrameRecon.PublishMeshs(nh);
         // m_oExplicitBuilder.setWorkingFrameCount(0);
         // m_oExplicitBuilder.SetViewPoint(oCurrentViewP, 0.0);
-		// m_oExplicitBuilder.FrameReconstruction(*reconRawCloud, *FramePNormal, 0, 15);	//得到带法向的点云
+        // m_oExplicitBuilder.FrameReconstruction(*fullCloud, *FramePNormal, 0, 15);	//得到带法向的点云
 
-        //将向量合并到点云上
-        // for (int i = 0; i < FramePNormal->points.size();i++)
-        // {
-        //     fullCloud->points[i].normal_x = FramePNormal->points[i].normal_x;
-        //     fullCloud->points[i].normal_y = FramePNormal->points[i].normal_y;
-        //     fullCloud->points[i].normal_z = FramePNormal->points[i].normal_z;
-        // }
+        // 将向量合并到点云上
+        //  for (int i = 0; i < FramePNormal->points.size();i++)
+        //  {
+        //      fullCloud->points[i].normal_x = FramePNormal->points[i].normal_x;
+        //      fullCloud->points[i].normal_y = FramePNormal->points[i].normal_y;
+        //      fullCloud->points[i].normal_z = FramePNormal->points[i].normal_z;
+        //  }
 
         //************additional points**************
         // pcl::PointCloud<pcl::PointNormal> vAdditionalPoints;
         // pcl::PointCloud<pcl::PointXYZI> vDisplayAdditionalPoints;
-		// for(int i = 0; i < m_oExplicitBuilder.m_vAllSectorClouds.size(); ++i) {
-		// 	MeshSample::GetAdditionalPointCloud(
-		// 		*(m_oExplicitBuilder.m_vAllSectorClouds[i]) , m_oExplicitBuilder.m_vAllSectorFaces[i], 
-		// 		m_oExplicitBuilder.m_vFaceWeight[i], m_oExplicitBuilder.m_vMatNormal[i],
-		// 		vAdditionalPoints, vDisplayAdditionalPoints
-		// 	);
-		// }
-        
-        //将重建的采样点云添加进去
-        // for (int i = 0; i < vAdditionalPoints.points.size();i++)
-        // {
-        //     PointType thisPoint;
-        //     thisPoint.x = vAdditionalPoints.points[i].x;
-        //     thisPoint.y = vAdditionalPoints.points[i].y;
-        //     thisPoint.z = vAdditionalPoints.points[i].z;
-        //     thisPoint.normal_x = vAdditionalPoints.points[i].normal_x;
-        //     thisPoint.normal_y = vAdditionalPoints.points[i].normal_y;
-        //     thisPoint.normal_z = vAdditionalPoints.points[i].normal_z;
-        //     thisPoint.intensity = vDisplayAdditionalPoints.points[i].intensity;
-        //     thisPoint.ring = -1; //-1表示在为采样点，不是雷达点原始点云
-        //     fullCloud->push_back(thisPoint);
+        // for(int i = 0; i < m_oExplicitBuilder.m_vAllSectorClouds.size(); ++i) {
+        // 	MeshSample::GetAdditionalPointCloud(
+        // 		*(m_oExplicitBuilder.m_vAllSectorClouds[i]) , m_oExplicitBuilder.m_vAllSectorFaces[i],
+        // 		m_oExplicitBuilder.m_vFaceWeight[i], m_oExplicitBuilder.m_vMatNormal[i],
+        // 		vAdditionalPoints, vDisplayAdditionalPoints
+        // 	);
         // }
 
-        //TODO 后续使用单帧重建进行SLAM？
+        // 将重建的采样点云添加进去
+        //  for (int i = 0; i < vAdditionalPoints.points.size();i++)
+        //  {
+        //      PointType thisPoint;
+        //      thisPoint.x = vAdditionalPoints.points[i].x;
+        //      thisPoint.y = vAdditionalPoints.points[i].y;
+        //      thisPoint.z = vAdditionalPoints.points[i].z;
+        //      thisPoint.normal_x = vAdditionalPoints.points[i].normal_x;
+        //      thisPoint.normal_y = vAdditionalPoints.points[i].normal_y;
+        //      thisPoint.normal_z = vAdditionalPoints.points[i].normal_z;
+        //      thisPoint.intensity = vDisplayAdditionalPoints.points[i].intensity;
+        //      thisPoint.ring = -1; //-1表示在为采样点，不是雷达点原始点云
+        //      fullCloud->push_back(thisPoint);
+        //  }
 
+        // TODO 后续使用单帧重建进行SLAM？
 
         ///*Debug
         #ifdef DEBUG

@@ -56,38 +56,9 @@
 #include <thread>
 #include <mutex>
 
+#include "PointType.h"
+
 using namespace std;
-
-namespace pcl {
-    struct PointNormalICRTL {
-        PCL_ADD_POINT4D;               // xyz + intensity
-        PCL_ADD_INTENSITY;
-        PCL_ADD_NORMAL4D; // normal + curvature
-        // PCL_ADD_CURVATURE;
-        uint16_t ring;
-        float time;
-        uint32_t label;                        // label
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    };
-}
-POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointNormalICRTL,
-                                  (float, x, x)
-                                  (float, y, y)
-                                  (float, z, z)
-                                  (float, intensity, intensity)
-                                  (float, normal_x, normal_x)
-                                  (float, normal_y, normal_y)
-                                  (float, normal_z, normal_z)
-                                //   (float, curvature, curvature)
-                                  (uint16_t, ring, ring)
-                                  (float, time ,time)
-                                  (uint32_t, label, label))
-
-
-// typedef pcl::PointXYZI PointType;
-typedef pcl::PointNormalICRTL PointType;
-
-
 // enum class SensorType { VELODYNE, OUSTER, LIVOX };
 enum class SensorType
 {
@@ -121,6 +92,7 @@ public:
 
     // Frames
     string lidarFrame;    // 雷达坐标系
+    string imuFrame;    // 雷达坐标系
     string baselinkFrame; // 车辆底盘坐标系
     string odometryFrame; //
     string mapFrame;      //
@@ -198,6 +170,8 @@ public:
     float globalMapVisualizationPoseDensity;
     float globalMapVisualizationLeafSize;
 
+    // tf::Transform Baselink2lidar = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
+
     ParamServer()
     {
         nh.param<bool>("husky_lio_sam/debug", debug, false);
@@ -212,6 +186,7 @@ public:
         nh.param<std::string>("husky_lio_sam/gpsTopic", gpsTopic, "odometry/gps");
 
         nh.param<std::string>("husky_lio_sam/lidarFrame", lidarFrame, "base_link");
+        nh.param<std::string>("husky_lio_sam/imuFrame", imuFrame, "base_link");
         nh.param<std::string>("husky_lio_sam/baselinkFrame", baselinkFrame, "base_link");
         nh.param<std::string>("husky_lio_sam/odometryFrame", odometryFrame, "odom");
         nh.param<std::string>("husky_lio_sam/mapFrame", mapFrame, "map");
@@ -331,7 +306,7 @@ public:
         imu_out.angular_velocity.y = gyr.y();
         imu_out.angular_velocity.z = gyr.z();
         // rotate roll pitch yaw
-        if (imuType)
+        if (imuType) //#true: 9轴 false: 6轴
         {
             // rotate roll pitch yaw
             Eigen::Quaterniond q_from(imu_in.orientation.w, imu_in.orientation.x, imu_in.orientation.y, imu_in.orientation.z);

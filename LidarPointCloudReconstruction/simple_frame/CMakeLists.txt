@@ -7,9 +7,6 @@ SET(CMAKE_C_COMPILER g++)
 add_compile_options(-std=c++17)
 # supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
-IF (CMAKE_BUILD_TYPE STREQUAL Debug)      
-    ADD_DEFINITIONS(-DDEBUG)                        
-ENDIF()
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -24,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
              tf
              sensor_msgs
              filters
+             fusion_msgs
 )
 
 find_package(CGAL QUIET COMPONENTS)

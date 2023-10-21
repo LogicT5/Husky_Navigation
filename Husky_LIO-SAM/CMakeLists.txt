@@ -24,7 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   visualization_msgs
   pcl_ros
-  std_msgs
+  shape_msgs
   roslint
   tf2
   tf2_eigen
@@ -46,6 +46,7 @@ add_message_files(
   DIRECTORY msg
   FILES
   cloud_info.msg
+  MeshArray.msg
 )
 
 add_service_files(
@@ -60,6 +61,7 @@ generate_messages(
   std_msgs
   nav_msgs
   sensor_msgs
+  shape_msgs
 )
 
 catkin_package(
@@ -79,7 +81,7 @@ catkin_package(
 # include directories
 include_directories(
 	include
-  src/frame_recon/include
+  # src/frame_recon
 	${catkin_INCLUDE_DIRS}
 	${PCL_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
@@ -101,47 +103,14 @@ link_directories(
 
 add_definitions(${PCL_DEFINITIONS})
 
-aux_source_directory(src/frame_recon/src FrameRecon_DIR_SRCS)
+aux_source_directory(src/frame_recon FrameRecon_DIR_SRCS)
 add_library(FrameRecon STATIC ${FrameRecon_DIR_SRCS})
-
-add_executable(${PROJECT_NAME}_pmerger src/pmerger.cpp)
-add_dependencies(${PROJECT_NAME}_pmerger ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}_pmerger ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-
-# add_executable(${PROJECT_NAME}_Scancontext src/Scancontext.cpp)
-# add_dependencies(${PROJECT_NAME}_Scancontext ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-# target_link_libraries(${PROJECT_NAME}_Scancontext ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-
-# Range Image Projection
-# add_executable(${PROJECT_NAME}_imageProjection src/imageProjection.cpp)
-# add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-# target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
-
-# Feature Association
-# add_executable(${PROJECT_NAME}_featureExtraction src/featureExtraction.cpp)
-# add_dependencies(${PROJECT_NAME}_featureExtraction ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-# target_link_libraries(${PROJECT_NAME}_featureExtraction ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
-
-# Mapping Optimization
-# add_executable(${PROJECT_NAME}_mapOptmization src/mapOptmization.cpp)
-# add_dependencies(${PROJECT_NAME}_mapOptmization ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-# target_compile_options(${PROJECT_NAME}_mapOptmization PRIVATE ${OpenMP_CXX_FLAGS})
-# target_link_libraries(${PROJECT_NAME}_mapOptmization ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${OpenMP_CXX_FLAGS} gtsam)
-
-# IMU Preintegration
-# add_executable(${PROJECT_NAME}_imuPreintegration src/imuPreintegration.cpp)
-# target_link_libraries(${PROJECT_NAME}_imuPreintegration ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} gtsam)
-
-#FrameRecon 
-# add_executable(${PROJECT_NAME}_FrameRecon src/FrameRecon/src)
-# add_dependencies(${PROJECT_NAME}_FrameRecon ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-# target_link_libraries(${PROJECT_NAME}_FrameRecon ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
 
 # Range Image Projection FULL
 add_executable(${PROJECT_NAME}_imageProjection src/imageProjection.cpp)
 add_dependencies(${PROJECT_NAME}_imageProjection ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp )
 # add_to_cached_list( CGAL_EXECUTABLE_TARGETS ${PROJECT_NAME}_imageProjection)
-target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} FrameRecon -lpthread -lm)
+target_link_libraries(${PROJECT_NAME}_imageProjection ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES} FrameRecon)
 
 # Feature Association
 add_executable(${PROJECT_NAME}_featureExtraction src/featureExtraction.cpp)
@@ -149,7 +118,7 @@ add_dependencies(${PROJECT_NAME}_featureExtraction ${catkin_EXPORTED_TARGETS} ${
 target_link_libraries(${PROJECT_NAME}_featureExtraction ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 # Mapping Optimization
-add_executable(${PROJECT_NAME}_mapOptmization src/mapOptmization.cpp src/Scancontext.cpp)
+add_executable(${PROJECT_NAME}_mapOptmization src/mapOptmization.cpp)
 add_dependencies(${PROJECT_NAME}_mapOptmization ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_compile_options(${PROJECT_NAME}_mapOptmization PRIVATE ${OpenMP_CXX_FLAGS})
 target_link_libraries(${PROJECT_NAME}_mapOptmization ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBRARIES} ${OpenMP_CXX_FLAGS} gtsam)

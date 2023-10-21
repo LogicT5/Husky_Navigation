@@ -66,11 +66,11 @@ public:
     // lidar系到载体系的变换
     tf::TransformListener tfListener;
     tf::StampedTransform lidar2Baselink;
-    tf::TransformBroadcaster tfOdom2BaseLinkOdomFrame;
-    tf::TransformBroadcaster tfMap2BaseLinkMapFrame;
-    tf::Transform odom2baselinkodomFrame = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
-    tf::Transform map2baselinkmapFrame = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
-    tf::Transform lastIMUodomCur = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
+    tf::TransformBroadcaster tf_Odom2lidarOdom;
+    tf::TransformBroadcaster tf_Map2lidarMap;
+    // tf::Transform odom2baselinkodomFrame = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
+    // tf::Transform map2baselinkmapFrame = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
+    // tf::Transform lastIMUodomCur = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
 
     double lidarOdomTime = -1;
     deque<nav_msgs::Odometry> imuOdomQueue;
@@ -98,9 +98,9 @@ public:
                 tfListener.waitForTransform(lidarFrame, baselinkFrame, ros::Time::now(), ros::Duration(3.0));
                 // lidar系到baselink系的变换
                 tfListener.lookupTransform(lidarFrame, baselinkFrame, ros::Time::now(), lidar2Baselink);
-
-                tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time::now(), odometryFrame,"base_link_odom"));
-                tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(lidar2Baselink, ros::Time::now(), odometryFrame,"base_link_map"));        
+                
+                tf_Odom2lidarOdom.sendTransform(tf::StampedTransform(lidar2Baselink.inverse(), ros::Time::now(), odometryFrame,"lidar_odom"));
+                tf_Map2lidarMap.sendTransform(tf::StampedTransform(lidar2Baselink.inverse(), ros::Time::now(), odometryFrame,"lidar_map"));        
 
                 ///*Debug
                 #ifdef DEBUG
@@ -169,13 +169,14 @@ public:
      * 2、发布当前时刻里程计位姿，用于rviz展示；发布imu里程计路径，
      *       注：只是最近一帧激光里程计时刻与当前时刻之间的一段
     */
-   // ??? 坐标系变换是怎么做的?
     void imuOdometryHandler(const nav_msgs::Odometry::ConstPtr& odomMsg)
     {
         // 发布tf，map与odom系设为同一个系
         static tf::TransformBroadcaster tfMap2Odom;
         static tf::Transform map_to_odom = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
         tfMap2Odom.sendTransform(tf::StampedTransform(map_to_odom, odomMsg->header.stamp, mapFrame, odometryFrame));
+        tf_Odom2lidarOdom.sendTransform(tf::StampedTransform(lidar2Baselink.inverse(), ros::Time::now(), odometryFrame,"lidar_odom"));
+        tf_Map2lidarMap.sendTransform(tf::StampedTransform(lidar2Baselink.inverse(), ros::Time::now(), odometryFrame,"lidar_map"));
         
         std::lock_guard<std::mutex> lock(mtx);
 
@@ -212,38 +213,42 @@ public:
         pubImuOdometry.publish(laserOdometry);
 
         //发布tf，当前时刻odom到baselink系变换
-        static tf::TransformBroadcaster tfOdom2BaseLink;
-        tf::Transform tCur;
-        tf::poseMsgToTF(laserOdometry.pose.pose, tCur);
+        // tf::Transform tCur;
+        // tf::poseMsgToTF(laserOdometry.pose.pose, tCur);
 
         // 从里程计增量推算机器人是否运动，没有运动-》不动载体系
-        float incremental_x, incremental_y, incremental_z, incremental_roll, incremental_pitch, incremental_yaw;
-        pcl::getTranslationAndEulerAngles(imuOdomAffineIncre, incremental_x, incremental_y, incremental_z, incremental_roll, incremental_pitch, incremental_yaw);
-        double incremental = sqrt(pow(incremental_x,2) + pow(incremental_y,2) + pow(incremental_z,2));
-        if(incremental - 0.03 < 0 )
-        {
-            tCur = lastIMUodomCur;
-        } 
-        else
-        {
+        // float incremental_x, incremental_y, incremental_z, incremental_roll, incremental_pitch, incremental_yaw;
+        // pcl::getTranslationAndEulerAngles(imuOdomAffineIncre, incremental_x, incremental_y, incremental_z, incremental_roll, incremental_pitch, incremental_yaw);
+        // double incremental = sqrt(pow(incremental_x,2) + pow(incremental_y,2) + pow(incremental_z,2));
+        // if(incremental - 0.03 < 0 )
+        // {
+        //     tCur = lastIMUodomCur;
+        // } 
+        // else
+        // {
             // lastIMUodomCur = tf::Transform(tf::createQuaternionFromRPY(0, 0, 0), tf::Vector3(0, 0, 0));
-            lastIMUodomCur = tCur;
-        }
+            // lastIMUodomCur = tCur;
+        // }
 
-                if(lidarFrame != baselinkFrame) 
-        {
+        // if(lidarFrame != baselinkFrame) 
+        // {
             // lida系与载体系不同
-            tCur = tCur * lidar2Baselink;
+            // tCur = tCur * lidar2Baselink;
             //载体定位系
-            odom2baselinkodomFrame = lidar2Baselink;
-            map2baselinkmapFrame = map_to_odom * lidar2Baselink;
-        }
-        tf::StampedTransform odom_2_baselink = tf::StampedTransform(tCur, odomMsg->header.stamp, odometryFrame, baselinkFrame);
-        tfOdom2BaseLink.sendTransform(odom_2_baselink);
+            // odom2baselinkodomFrame = lidar2Baselink;
+            // map2baselinkmapFrame = map_to_odom * lidar2Baselink;
+        // }
+        //!! 坐标系问题，再找问题 这里应该无用
+        // if(lidarFrame != baselinkFrame)
+        // {
+        //     static tf::TransformBroadcaster tfOdom2BaseLink;
+        //     odom_2_baselink = tf::StampedTransform(lidar2Baselink, odomMsg->header.stamp, odometryFrame, baselinkFrame);
+        //     tfOdom2BaseLink.sendTransform(odom_2_baselink);
+        // }
         // 发布载体的odom系用于后续开发，事实上与载体系相同
         // 考虑到后续开发，坐标系统一先建立，有没有用调试完在看
-        tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(odom2baselinkodomFrame, ros::Time::now(), odometryFrame,"base_link_odom"));     
-        tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(map2baselinkmapFrame, ros::Time::now(), mapFrame,"base_link_map"));     
+        // tfOdom2BaseLinkOdomFrame.sendTransform(tf::StampedTransform(odom2baselinkodomFrame, ros::Time::now(), odometryFrame,"base_link_odom"));     
+        // tfMap2BaseLinkMapFrame.sendTransform(tf::StampedTransform(map2baselinkmapFrame, ros::Time::now(), mapFrame,"base_link_map"));     
         // 发布imu里程计路径，注：只是最近一帧激光里程计时刻与当前时刻之间的一段
         static nav_msgs::Path imuPath;
         static double last_path_time = -1;
